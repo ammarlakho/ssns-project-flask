@@ -342,7 +342,6 @@
     <script>
         let environmentalChart;
         let currentData = {};
-        let parameterInfo = {};
         
         // Initialize the application
         document.addEventListener('DOMContentLoaded', async function() {
@@ -353,35 +352,6 @@
                 await refreshData();
             }, 30000);
         });
-        
-        // Load parameter information
-        async function loadParameterInfo() {
-            try {
-                const response = await fetch('/api/parameters');
-                const data = await response.json();
-                parameterInfo = data.data;
-            } catch (error) {
-                console.error('Error loading parameter info:', error);
-            }
-        }
-        
-        // Load virtual alerts
-        async function loadVirtualAlerts() {
-            try {
-                const response = await fetch('/api/alerts');
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    displayAlerts(data.alerts);
-                } else {
-                    throw new Error(data.message);
-                }
-            } catch (error) {
-                console.error('Error loading alerts:', error);
-                document.getElementById('alertsContainer').innerHTML = 
-                    '<div class="error">Error loading alerts. Please try again.</div>';
-            }
-        }
         
         // Display virtual alerts
         function displayAlerts(alerts) {
@@ -426,6 +396,7 @@
                 if (data.status === 'success') {
                     currentData = data.data;
                     displayCurrentReadings(currentData);
+                    displayAlertsFromCurrentData(currentData);
                     updateLastUpdated();
                 } else {
                     throw new Error(data.message);
@@ -437,33 +408,62 @@
             }
         }
         
+        // Extract and display alerts from current data
+        function displayAlertsFromCurrentData(data) {
+            const parameters = data.parameters || {};
+            const alerts = [];
+            
+            // Extract alerts from parameters
+            for (const [paramName, paramData] of Object.entries(parameters)) {
+                if (paramData.alert) {
+                    alerts.push({
+                        type: paramData.alert.type,
+                        severity: paramData.alert.severity,
+                        title: paramData.alert.title,
+                        message: paramData.alert.message,
+                        parameter: paramData.display_name,
+                        value: paramData.value,
+                        threshold: paramData.alert.threshold
+                    });
+                }
+            }
+            
+            // Sort alerts by severity (high first, then medium)
+            alerts.sort((a, b) => a.severity === 'high' ? 0 : 1);
+            
+            displayAlerts(alerts);
+        }
+        
         // Display current readings
         function displayCurrentReadings(data) {
             const readingsContainer = document.getElementById('currentReadings');
-            const parameters = [
-                { key: 'co2', name: 'Carbon Dioxide', unit: 'ppm', icon: '🌬️' },
-                { key: 'vocs', name: 'VOCs', unit: 'ppb', icon: '🧪' },
-                { key: 'pm25', name: 'PM2.5', unit: 'μg/m³', icon: '🌫️' },
-                { key: 'pm10', name: 'PM10', unit: 'μg/m³', icon: '🌫️' },
-                { key: 'temperature', name: 'Temperature', unit: '°C', icon: '🌡️' },
-                { key: 'humidity', name: 'Humidity', unit: '%', icon: '💧' }
-            ];
+            const parameters = data.parameters || {};
             
-            const readingsHTML = parameters.map(param => {
-                const value = data[param.key];
-                const status = getStatusClass(param.key, value);
-                const statusText = getStatusText(param.key, value);
+            // Get parameter icons mapping
+            const paramIcons = {
+                'co2': '🌬️',
+                'vocs': '🧪',
+                'pm25': '🌫️',
+                'pm10': '🌫️',
+                'temperature': '🌡️',
+                'humidity': '💧'
+            };
+            
+            const readingsHTML = Object.entries(parameters).map(([paramKey, paramData]) => {
+                const icon = paramIcons[paramKey] || '📊';
+                const status = paramData.status;
+                const statusText = getStatusText(status);
                 
                 // Round the value to 2 decimal places
-                const roundedValue = typeof value === 'number' ? value.toFixed(2) : value;
+                const roundedValue = typeof paramData.value === 'number' ? paramData.value.toFixed(2) : paramData.value;
                 
                 return `
                     <div class="reading-card">
-                        <h3>${param.icon} ${param.name}</h3>
-                        <div class="reading-value ${status}">${roundedValue}</div>
-                        <div class="reading-unit">${param.unit}</div>
+                        <h3>${icon} ${paramData.display_name}</h3>
+                        <div class="reading-value status-${status}">${roundedValue}</div>
+                        <div class="reading-unit">${paramData.unit}</div>
                         <div style="margin-top: 0.5rem;">
-                            <span class="status-indicator ${status}"></span>
+                            <span class="status-indicator status-${status}"></span>
                             <span style="font-size: 0.9rem; color: #666;">${statusText}</span>
                         </div>
                     </div>
@@ -473,30 +473,12 @@
             readingsContainer.innerHTML = readingsHTML;
         }
         
-        // Get status class based on parameter value
-        function getStatusClass(parameter, value) {
-            if (!parameterInfo[parameter]) return 'status-good';
-            
-            const info = parameterInfo[parameter];    
-            const normalRange = info.normal_range.split('-').map(Number);
-            
-            if (parameter === 'temperature' || parameter === 'humidity') {
-                if (value >= normalRange[0] && value <= normalRange[1]) return 'status-good';
-                return 'status-warning';
-            } else {
-                if (value <= normalRange[1]) return 'status-good';
-                if (value <= parseFloat(info.dangerous_level.replace('>', ''))) return 'status-warning';
-                return 'status-danger';
-            }
-        }
-        
         // Get status text
-        function getStatusText(parameter, value) {
-            const statusClass = getStatusClass(parameter, value);
-            switch (statusClass) {
-                case 'status-good': return 'Good';
-                case 'status-warning': return 'Moderate';
-                case 'status-danger': return 'Poor';
+        function getStatusText(status) {
+            switch (status) {
+                case 'good': return 'Good';
+                case 'warning': return 'Moderate';
+                case 'danger': return 'Poor';
                 default: return 'Unknown';
             }
         }
@@ -669,9 +651,7 @@
         
         // Refresh data
         async function refreshData() {
-            await loadParameterInfo();
             await loadCurrentReadings();
-            await loadVirtualAlerts();
             await loadHistoricalData();
         }
         

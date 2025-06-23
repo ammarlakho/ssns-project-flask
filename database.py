@@ -463,6 +463,209 @@ class Database:
         except Exception as e:
             print(f"Failed to populate sample data: {e}")
 
+    def get_parameter_names(self) -> List[str]:
+        """Get list of all parameter names from the database."""
+        try:
+            self._ensure_connection()
+            cursor = self._connection.cursor()
+            cursor.execute('SELECT name FROM parameters ORDER BY name')
+            rows = cursor.fetchall()
+            return [row['name'] for row in rows]
+        except sqlite3.Error as e:
+            logger.error(f"Failed to get parameter names: {e}")
+            return []
+
+    def analyze_reading_with_status(self, reading: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """Analyze a reading and return status and alert information for each parameter."""
+        try:
+            # Get parameter configurations
+            parameters = self.get_all_parameters()
+
+            # Get parameter names dynamically
+            param_names = self.get_parameter_names()
+
+            result = {}
+
+            for param_name in param_names:
+                if param_name not in reading:
+                    continue
+
+                param_config = parameters.get(param_name, {})
+                value = reading.get(param_name, 0)
+
+                # Determine status
+                status = self._determine_status(
+                    param_name, value, param_config)
+
+                # Generate alert if needed
+                alert = self._generate_alert(
+                    param_name, value, param_config, status)
+
+                result[param_name] = {
+                    'value': value,
+                    'status': status,
+                    'alert': alert,
+                    'display_name': param_config.get('display_name', param_name.title()),
+                    'unit': param_config.get('unit', ''),
+                    'normal_range_min': param_config.get('normal_range_min'),
+                    'normal_range_max': param_config.get('normal_range_max'),
+                    'dangerous_level_min': param_config.get('dangerous_level_min'),
+                    'dangerous_level_max': param_config.get('dangerous_level_max')
+                }
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to analyze reading: {e}")
+            return {}
+
+    def _determine_status(self, param_name: str, value: float, param_config: Dict[str, Any]) -> str:
+        """Determine the status (good, warning, danger) for a parameter value."""
+        try:
+            normal_min = param_config.get('normal_range_min')
+            normal_max = param_config.get('normal_range_max')
+            dangerous_min = param_config.get('dangerous_level_min')
+            dangerous_max = param_config.get('dangerous_level_max')
+
+            if normal_min is None or normal_max is None:
+                return 'unknown'
+
+            # For temperature and humidity, check if within normal range
+            if param_name in ['temperature', 'humidity']:
+                if normal_min <= value <= normal_max:
+                    return 'good'
+                elif dangerous_min is not None and dangerous_max is not None:
+                    if value < dangerous_min or value > dangerous_max:
+                        return 'danger'
+                    else:
+                        return 'warning'
+                else:
+                    return 'warning'
+            else:
+                # For other parameters (CO2, VOCs, PM), lower is better
+                if value <= normal_max:
+                    return 'good'
+                elif dangerous_max is not None and value > dangerous_max:
+                    return 'danger'
+                else:
+                    return 'warning'
+
+        except Exception as e:
+            logger.error(f"Error determining status for {param_name}: {e}")
+            return 'unknown'
+
+    def _generate_alert(self, param_name: str, value: float, param_config: Dict[str, Any], status: str) -> Dict[str, Any]:
+        """Generate alert information for a parameter if needed."""
+        if status == 'good':
+            return None
+
+        try:
+            normal_min = param_config.get('normal_range_min')
+            normal_max = param_config.get('normal_range_max')
+            dangerous_min = param_config.get('dangerous_level_min')
+            dangerous_max = param_config.get('dangerous_level_max')
+
+            # Determine severity
+            severity = 'high' if status == 'danger' else 'medium'
+
+            # Generate alert message based on parameter type
+            if param_name == 'co2':
+                if status == 'danger':
+                    return {
+                        'type': 'ventilation_required',
+                        'severity': severity,
+                        'title': '🚨 Immediate Ventilation Required',
+                        'message': f'CO2 levels are dangerously high ({value:.1f} ppm). Open windows immediately and increase ventilation.',
+                        'threshold': dangerous_max
+                    }
+                else:
+                    return {
+                        'type': 'ventilation_required',
+                        'severity': severity,
+                        'title': '🪟 Ventilation Recommended',
+                        'message': f'CO2 levels are elevated ({value:.1f} ppm). Consider opening windows for better air circulation.',
+                        'threshold': normal_max
+                    }
+
+            elif param_name == 'vocs':
+                if status == 'danger':
+                    return {
+                        'type': 'ventilation_required',
+                        'severity': severity,
+                        'title': '🚨 High VOC Levels Detected',
+                        'message': f'VOC levels are dangerously high ({value:.1f} ppb). Increase ventilation and check for sources.',
+                        'threshold': dangerous_max
+                    }
+                else:
+                    return {
+                        'type': 'ventilation_required',
+                        'severity': severity,
+                        'title': '🪟 VOC Levels Elevated',
+                        'message': f'VOC levels are elevated ({value:.1f} ppb). Consider improving ventilation.',
+                        'threshold': normal_max
+                    }
+
+            elif param_name in ['pm25', 'pm10']:
+                param_display = 'PM2.5' if param_name == 'pm25' else 'PM10'
+                if status == 'danger':
+                    return {
+                        'type': 'air_quality',
+                        'severity': severity,
+                        'title': f'🚨 Poor Air Quality - {param_display}',
+                        'message': f'{param_display} levels are dangerously high ({value:.1f} μg/m³). Improve air filtration and ventilation.',
+                        'threshold': dangerous_max
+                    }
+                else:
+                    return {
+                        'type': 'air_quality',
+                        'severity': severity,
+                        'title': f'⚠️ Moderate Air Quality - {param_display}',
+                        'message': f'{param_display} levels are elevated ({value:.1f} μg/m³). Monitor air quality.',
+                        'threshold': normal_max
+                    }
+
+            elif param_name == 'temperature':
+                if status == 'danger':
+                    return {
+                        'type': 'comfort',
+                        'severity': severity,
+                        'title': '🌡️ Extreme Temperature',
+                        'message': f'Temperature is outside comfortable range ({value:.1f}°C). Adjust HVAC settings.',
+                        'threshold': f"{dangerous_min}-{dangerous_max}°C"
+                    }
+                else:
+                    return {
+                        'type': 'comfort',
+                        'severity': severity,
+                        'title': '🌡️ Temperature Alert',
+                        'message': f'Temperature is outside optimal range ({value:.1f}°C). Consider adjusting settings.',
+                        'threshold': f"{normal_min}-{normal_max}°C"
+                    }
+
+            elif param_name == 'humidity':
+                if status == 'danger':
+                    return {
+                        'type': 'comfort',
+                        'severity': severity,
+                        'title': '💧 Extreme Humidity',
+                        'message': f'Humidity is outside comfortable range ({value:.1f}%). Adjust humidity control.',
+                        'threshold': f"{dangerous_min}-{dangerous_max}%"
+                    }
+                else:
+                    return {
+                        'type': 'comfort',
+                        'severity': severity,
+                        'title': '💧 Humidity Alert',
+                        'message': f'Humidity is outside optimal range ({value:.1f}%). Consider adjusting settings.',
+                        'threshold': f"{normal_min}-{normal_max}%"
+                    }
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error generating alert for {param_name}: {e}")
+            return None
+
 
 # Global database instance
 db = Database()
