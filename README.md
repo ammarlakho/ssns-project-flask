@@ -12,6 +12,7 @@ A Flask-based web application for real-time monitoring of environmental paramete
 - **Auto-refresh**: Automatic data updates every 30 seconds
 - **Database Storage**: SQLite database
 - **Modular Architecture**: Clean separation of concerns with database abstraction layer
+- **Docker Support**: Containerized deployment with data persistence
 
 ## Monitored Parameters
 
@@ -25,6 +26,8 @@ A Flask-based web application for real-time monitoring of environmental paramete
 | Humidity | % | Relative humidity of the air | 30-60 | <20 or >80 |
 
 ## Quick Start
+
+### Option 1: Local Development Setup
 
 1. **Make scripts executable** (first time only):
    ```bash
@@ -49,6 +52,110 @@ A Flask-based web application for real-time monitoring of environmental paramete
 5. **Access the dashboard**:
    - Open your browser and go to: `http://localhost:8000`
    - View real-time environmental data and historical trends
+
+### Option 2: Docker Deployment (Recommended for Production)
+
+#### Prerequisites
+- Docker installed and running on your system
+- Git (to clone the repository)
+
+#### Quick Docker Start
+
+1. **Make the script executable**:
+   ```bash
+   chmod +x run-docker.sh
+   ```
+
+2. **Start the application**:
+   ```bash
+   ./run-docker.sh start
+   ```
+
+3. **Access the application**:
+   - Open your browser and go to: `http://localhost:8000`
+
+#### Manual Docker Commands
+
+1. **Build the Docker image**:
+   ```bash
+   docker build -t ssns-flask-app .
+   ```
+
+2. **Create data directories**:
+   ```bash
+   mkdir -p data logs
+   ```
+
+3. **Run the container**:
+   ```bash
+   docker run -d \
+     --name ssns-flask-app \
+     -p 8000:8000 \
+     -v "$(pwd)/data:/app/data" \
+     -v "$(pwd)/logs:/app/logs" \
+     -e DB_PATH=/app/data/environmental_data.db \
+     ssns-flask-app
+   ```
+
+#### Docker Management Commands
+
+**Using the script**:
+- `./run-docker.sh start` - Build and start the application
+- `./run-docker.sh stop` - Stop the application
+- `./run-docker.sh restart` - Restart the application
+- `./run-docker.sh logs` - View application logs
+- `./run-docker.sh status` - Show application status
+- `./run-docker.sh cleanup` - Remove container and image
+- `./run-docker.sh build` - Build the Docker image only
+- `./run-docker.sh run` - Run the container (assumes image is built)
+
+**Manual Docker commands**:
+- Stop the container: `docker stop ssns-flask-app`
+- Remove the container: `docker rm ssns-flask-app`
+- View logs: `docker logs -f ssns-flask-app`
+- View container status: `docker ps -a --filter name=ssns-flask-app`
+
+#### Docker Environment Variables
+
+You can customize the application by setting environment variables:
+
+- `DB_PATH`: Path to the SQLite database file (default: `/app/data/environmental_data.db`)
+- `SECRET_KEY`: Flask secret key for session management
+
+Example:
+```bash
+docker run -d \
+  --name ssns-flask-app \
+  -p 8000:8000 \
+  -v "$(pwd)/data:/app/data" \
+  -v "$(pwd)/logs:/app/logs" \
+  -e DB_PATH=/app/data/environmental_data.db \
+  -e SECRET_KEY=your-secret-key-here \
+  ssns-flask-app
+```
+
+#### Docker Data Persistence
+
+The application uses SQLite database stored in the `data/` directory. This directory is mounted as a volume to ensure data persistence between container restarts.
+
+#### Docker Troubleshooting
+
+1. **Port already in use**: If port 8000 is already in use, change the port mapping:
+   ```bash
+   docker run -d --name ssns-flask-app -p 8001:8000 ssns-flask-app
+   ```
+
+2. **Permission issues**: Make sure the script is executable:
+   ```bash
+   chmod +x run-docker.sh
+   ```
+
+3. **Container won't start**: Check the logs:
+   ```bash
+   docker logs ssns-flask-app
+   ```
+
+4. **Database issues**: The database will be automatically initialized when the container starts for the first time.
 
 ## Database
 
@@ -114,10 +221,17 @@ ssns-project-flask/
 │   ├── sqlite_db.py    # SQLite implementation
 │   └── factory.py      # Database factory
 ├── templates/          # HTML templates
-│   └── index.html     # Environmental monitoring dashboard
+│   ├── index.html     # Environmental monitoring dashboard
+│   ├── 404.html       # 404 error page
+│   ├── 500.html       # 500 error page
+│   └── admin_parameters.html # Admin parameters page
 ├── test_app.py        # Comprehensive test suite
 ├── setup.sh           # Setup script (creates venv & installs deps)
 ├── start.sh           # Startup script (runs the app)
+├── run-docker.sh      # Docker management script
+├── Dockerfile         # Docker container definition
+├── data/              # Data directory (created by Docker)
+├── logs/              # Logs directory (created by Docker)
 ├── .gitignore         # Git ignore rules
 └── README.md          # This file
 ```
@@ -132,6 +246,7 @@ ssns-project-flask/
 | `/api/historical` | GET | Historical data with time range | JSON data |
 | `/api/parameters` | GET | Parameter information and ranges | JSON metadata |
 | `/api/stats` | GET | Database statistics | JSON stats |
+| `/admin/parameters` | GET | Admin parameters management page | HTML page |
 
 ### Example API Responses
 
