@@ -286,6 +286,197 @@ def database_stats():
         }), 500
 
 
+@app.route('/api/alerts')
+def get_virtual_alerts():
+    """Get virtual alerts based on current environmental conditions"""
+    try:
+        # Get current readings
+        current_readings = get_current_readings()
+        if not current_readings:
+            return jsonify({
+                'status': 'error',
+                'message': 'No current readings available'
+            }), 500
+
+        # Get parameter thresholds
+        parameters = db.get_all_parameters()
+
+        alerts = []
+
+        # Analyze CO2 levels for ventilation alerts
+        co2_value = current_readings.get('co2', 0)
+        co2_params = parameters.get('co2', {})
+
+        if co2_value > co2_params.get('normal_range_max', 1000):
+            if co2_value > co2_params.get('dangerous_level_max', 1000):
+                alerts.append({
+                    'type': 'ventilation_required',
+                    'severity': 'high',
+                    'title': '🚨 Immediate Ventilation Required',
+                    'message': f'CO2 levels are dangerously high ({co2_value} ppm). Open windows immediately and increase ventilation.',
+                    'parameter': 'CO2',
+                    'value': co2_value,
+                    'threshold': co2_params.get('dangerous_level_max', 1000)
+                })
+            else:
+                alerts.append({
+                    'type': 'ventilation_required',
+                    'severity': 'medium',
+                    'title': '🪟 Ventilation Recommended',
+                    'message': f'CO2 levels are elevated ({co2_value} ppm). Consider opening windows for better air circulation.',
+                    'parameter': 'CO2',
+                    'value': co2_value,
+                    'threshold': co2_params.get('normal_range_max', 1000)
+                })
+
+        # Analyze VOCs for ventilation alerts
+        vocs_value = current_readings.get('vocs', 0)
+        vocs_params = parameters.get('vocs', {})
+
+        if vocs_value > vocs_params.get('normal_range_max', 500):
+            if vocs_value > vocs_params.get('dangerous_level_max', 500):
+                alerts.append({
+                    'type': 'ventilation_required',
+                    'severity': 'high',
+                    'title': '🚨 High VOC Levels Detected',
+                    'message': f'VOC levels are dangerously high ({vocs_value} ppb). Increase ventilation and check for sources.',
+                    'parameter': 'VOCs',
+                    'value': vocs_value,
+                    'threshold': vocs_params.get('dangerous_level_max', 500)
+                })
+            else:
+                alerts.append({
+                    'type': 'ventilation_required',
+                    'severity': 'medium',
+                    'title': '🪟 VOC Levels Elevated',
+                    'message': f'VOC levels are elevated ({vocs_value} ppb). Consider improving ventilation.',
+                    'parameter': 'VOCs',
+                    'value': vocs_value,
+                    'threshold': vocs_params.get('normal_range_max', 500)
+                })
+
+        # Analyze PM2.5 for air quality alerts
+        pm25_value = current_readings.get('pm25', 0)
+        pm25_params = parameters.get('pm25', {})
+
+        if pm25_value > pm25_params.get('normal_range_max', 12):
+            if pm25_value > pm25_params.get('dangerous_level_max', 35):
+                alerts.append({
+                    'type': 'air_quality',
+                    'severity': 'high',
+                    'title': '🚨 Poor Air Quality - PM2.5',
+                    'message': f'PM2.5 levels are dangerously high ({pm25_value} μg/m³). Improve air filtration and ventilation.',
+                    'parameter': 'PM2.5',
+                    'value': pm25_value,
+                    'threshold': pm25_params.get('dangerous_level_max', 35)
+                })
+            else:
+                alerts.append({
+                    'type': 'air_quality',
+                    'severity': 'medium',
+                    'title': '⚠️ Moderate Air Quality - PM2.5',
+                    'message': f'PM2.5 levels are elevated ({pm25_value} μg/m³). Monitor air quality.',
+                    'parameter': 'PM2.5',
+                    'value': pm25_value,
+                    'threshold': pm25_params.get('normal_range_max', 12)
+                })
+
+        # Analyze PM10 for air quality alerts
+        pm10_value = current_readings.get('pm10', 0)
+        pm10_params = parameters.get('pm10', {})
+
+        if pm10_value > pm10_params.get('normal_range_max', 54):
+            if pm10_value > pm10_params.get('dangerous_level_max', 150):
+                alerts.append({
+                    'type': 'air_quality',
+                    'severity': 'high',
+                    'title': '🚨 Poor Air Quality - PM10',
+                    'message': f'PM10 levels are dangerously high ({pm10_value} μg/m³). Improve air filtration and ventilation.',
+                    'parameter': 'PM10',
+                    'value': pm10_value,
+                    'threshold': pm10_params.get('dangerous_level_max', 150)
+                })
+            else:
+                alerts.append({
+                    'type': 'air_quality',
+                    'severity': 'medium',
+                    'title': '⚠️ Moderate Air Quality - PM10',
+                    'message': f'PM10 levels are elevated ({pm10_value} μg/m³). Monitor air quality.',
+                    'parameter': 'PM10',
+                    'value': pm10_value,
+                    'threshold': pm10_params.get('normal_range_max', 54)
+                })
+
+        # Analyze temperature for comfort alerts
+        temp_value = current_readings.get('temperature', 0)
+        temp_params = parameters.get('temperature', {})
+
+        if temp_value < temp_params.get('normal_range_min', 18) or temp_value > temp_params.get('normal_range_max', 25):
+            if temp_value < temp_params.get('dangerous_level_min', 10) or temp_value > temp_params.get('dangerous_level_max', 30):
+                alerts.append({
+                    'type': 'comfort',
+                    'severity': 'high',
+                    'title': '🌡️ Extreme Temperature',
+                    'message': f'Temperature is outside comfortable range ({temp_value}°C). Adjust HVAC settings.',
+                    'parameter': 'Temperature',
+                    'value': temp_value,
+                    'threshold': f"{temp_params.get('normal_range_min', 18)}-{temp_params.get('normal_range_max', 25)}°C"
+                })
+            else:
+                alerts.append({
+                    'type': 'comfort',
+                    'severity': 'medium',
+                    'title': '🌡️ Temperature Alert',
+                    'message': f'Temperature is outside optimal range ({temp_value}°C). Consider adjusting settings.',
+                    'parameter': 'Temperature',
+                    'value': temp_value,
+                    'threshold': f"{temp_params.get('normal_range_min', 18)}-{temp_params.get('normal_range_max', 25)}°C"
+                })
+
+        # Analyze humidity for comfort alerts
+        humidity_value = current_readings.get('humidity', 0)
+        humidity_params = parameters.get('humidity', {})
+
+        if humidity_value < humidity_params.get('normal_range_min', 30) or humidity_value > humidity_params.get('normal_range_max', 60):
+            if humidity_value < humidity_params.get('dangerous_level_min', 20) or humidity_value > humidity_params.get('dangerous_level_max', 80):
+                alerts.append({
+                    'type': 'comfort',
+                    'severity': 'high',
+                    'title': '💧 Extreme Humidity',
+                    'message': f'Humidity is outside comfortable range ({humidity_value}%). Adjust humidity control.',
+                    'parameter': 'Humidity',
+                    'value': humidity_value,
+                    'threshold': f"{humidity_params.get('normal_range_min', 30)}-{humidity_params.get('normal_range_max', 60)}%"
+                })
+            else:
+                alerts.append({
+                    'type': 'comfort',
+                    'severity': 'medium',
+                    'title': '💧 Humidity Alert',
+                    'message': f'Humidity is outside optimal range ({humidity_value}%). Consider adjusting settings.',
+                    'parameter': 'Humidity',
+                    'value': humidity_value,
+                    'threshold': f"{humidity_params.get('normal_range_min', 30)}-{humidity_params.get('normal_range_max', 60)}%"
+                })
+
+        # Sort alerts by severity (high first, then medium)
+        alerts.sort(key=lambda x: 0 if x['severity'] == 'high' else 1)
+
+        return jsonify({
+            'status': 'success',
+            'alerts': alerts,
+            'total_alerts': len(alerts),
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating alerts: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 # Global error handlers to prevent crashes
 @app.errorhandler(404)
 def not_found(error):

@@ -396,15 +396,67 @@ class Database:
             # Generate readings every 15 minutes
             current_time = start_time
             while current_time <= end_time:
-                reading = {
-                    'timestamp': current_time.isoformat(),
-                    'co2': random.uniform(400, 800),
-                    'vocs': random.uniform(50, 200),
-                    'pm25': random.uniform(5, 15),
-                    'pm10': random.uniform(10, 30),
-                    'temperature': random.uniform(18, 25),
-                    'humidity': random.uniform(40, 60)
-                }
+                # Create some variation to test alerts
+                hour = current_time.hour
+
+                # Simulate different scenarios throughout the day
+                if 8 <= hour <= 10:  # Morning - normal conditions
+                    reading = {
+                        'timestamp': current_time.isoformat(),
+                        'co2': random.uniform(400, 600),
+                        'vocs': random.uniform(50, 150),
+                        'pm25': random.uniform(5, 10),
+                        'pm10': random.uniform(10, 20),
+                        'temperature': random.uniform(20, 23),
+                        'humidity': random.uniform(45, 55)
+                    }
+                elif 11 <= hour <= 13:  # Midday - elevated CO2 and VOCs
+                    reading = {
+                        'timestamp': current_time.isoformat(),
+                        # Will trigger ventilation alerts
+                        'co2': random.uniform(800, 1200),
+                        # Will trigger VOC alerts
+                        'vocs': random.uniform(300, 600),
+                        'pm25': random.uniform(8, 15),
+                        'pm10': random.uniform(15, 25),
+                        'temperature': random.uniform(22, 26),
+                        'humidity': random.uniform(50, 65)
+                    }
+                elif 14 <= hour <= 16:  # Afternoon - poor air quality
+                    reading = {
+                        'timestamp': current_time.isoformat(),
+                        'co2': random.uniform(600, 900),
+                        'vocs': random.uniform(200, 400),
+                        # Will trigger PM2.5 alerts
+                        'pm25': random.uniform(15, 40),
+                        # Will trigger PM10 alerts
+                        'pm10': random.uniform(30, 80),
+                        'temperature': random.uniform(24, 28),
+                        'humidity': random.uniform(55, 70)
+                    }
+                elif 17 <= hour <= 19:  # Evening - temperature/humidity issues
+                    reading = {
+                        'timestamp': current_time.isoformat(),
+                        'co2': random.uniform(500, 700),
+                        'vocs': random.uniform(100, 250),
+                        'pm25': random.uniform(6, 12),
+                        'pm10': random.uniform(12, 22),
+                        # Will trigger temperature alerts
+                        'temperature': random.uniform(26, 32),
+                        # Will trigger humidity alerts
+                        'humidity': random.uniform(70, 85)
+                    }
+                else:  # Night - normal conditions
+                    reading = {
+                        'timestamp': current_time.isoformat(),
+                        'co2': random.uniform(400, 500),
+                        'vocs': random.uniform(30, 100),
+                        'pm25': random.uniform(3, 8),
+                        'pm10': random.uniform(8, 15),
+                        'temperature': random.uniform(18, 22),
+                        'humidity': random.uniform(40, 50)
+                    }
+
                 self.insert_reading(reading)
                 current_time += timedelta(minutes=15)
 

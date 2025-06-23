@@ -172,6 +172,100 @@
             margin: 1rem 0;
         }
         
+        .alerts-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .alerts-section h2 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .alerts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .alert-card {
+            padding: 1rem;
+            border-radius: 10px;
+            border-left: 5px solid;
+            background: #f8f9fa;
+            transition: transform 0.2s ease;
+        }
+        
+        .alert-card:hover {
+            transform: translateX(5px);
+        }
+        
+        .alert-card.high {
+            border-left-color: #dc3545;
+            background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        }
+        
+        .alert-card.medium {
+            border-left-color: #ffc107;
+            background: linear-gradient(135deg, #fffbf0 0%, #fef5e7 100%);
+        }
+        
+        .alert-card.good {
+            border-left-color: #28a745;
+            background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+        }
+        
+        .alert-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        
+        .alert-message {
+            color: #666;
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+        
+        .alert-details {
+            font-size: 0.9rem;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .alert-parameter {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .no-alerts {
+            text-align: center;
+            padding: 2rem;
+            color: #28a745;
+            font-size: 1.1rem;
+            background: #f0fff4;
+            border-radius: 10px;
+            border: 2px dashed #28a745;
+        }
+        
+        .alerts-loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -210,6 +304,14 @@
         <!-- Current Readings Section -->
         <div class="current-readings" id="currentReadings">
             <div class="loading">Loading current readings...</div>
+        </div>
+        
+        <!-- Virtual Alerts Section -->
+        <div class="alerts-section">
+            <h2>🚨 Virtual Alerts & Recommendations</h2>
+            <div id="alertsContainer">
+                <div class="alerts-loading">Analyzing environmental conditions...</div>
+            </div>
         </div>
         
         <!-- Charts Section -->
@@ -261,6 +363,58 @@
             } catch (error) {
                 console.error('Error loading parameter info:', error);
             }
+        }
+        
+        // Load virtual alerts
+        async function loadVirtualAlerts() {
+            try {
+                const response = await fetch('/api/alerts');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    displayAlerts(data.alerts);
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+                document.getElementById('alertsContainer').innerHTML = 
+                    '<div class="error">Error loading alerts. Please try again.</div>';
+            }
+        }
+        
+        // Display virtual alerts
+        function displayAlerts(alerts) {
+            const alertsContainer = document.getElementById('alertsContainer');
+            
+            if (alerts.length === 0) {
+                alertsContainer.innerHTML = `
+                    <div class="no-alerts">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                        <div>All environmental parameters are within normal ranges!</div>
+                        <div style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.7;">No ventilation or air quality alerts at this time.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const alertsHTML = alerts.map(alert => {
+                const severityClass = alert.severity === 'high' ? 'high' : 'medium';
+                const valueDisplay = typeof alert.value === 'number' ? alert.value.toFixed(2) : alert.value;
+                
+                return `
+                    <div class="alert-card ${severityClass}">
+                        <div class="alert-title">${alert.title}</div>
+                        <div class="alert-message">${alert.message}</div>
+                        <div class="alert-details">
+                            <span class="alert-parameter">${alert.parameter}: ${valueDisplay}</span>
+                            <span>Threshold: ${alert.threshold}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            alertsContainer.innerHTML = alertsHTML;
         }
         
         // Load current readings
@@ -517,6 +671,7 @@
         async function refreshData() {
             await loadParameterInfo();
             await loadCurrentReadings();
+            await loadVirtualAlerts();
             await loadHistoricalData();
         }
         
