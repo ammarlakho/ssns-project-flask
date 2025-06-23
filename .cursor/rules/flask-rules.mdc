@@ -1,0 +1,86 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor Rules for Flask SSNS Project
+
+## Project Context
+This is a Flask 3.0+ web application with API endpoints, HTML templates, and unit tests. The project follows a simple structure with app.py as the main entry point, running on port 8000 with debug mode enabled.
+
+## Code Style & Patterns
+
+### Python/Flask Code
+- Use Flask 3.0+ syntax and patterns
+- Follow PEP 8 style guidelines
+- Use type hints where appropriate
+- Keep functions small and focused (max 20-30 lines)
+- Use meaningful variable and function names
+- Add docstrings to all functions and classes
+- Use f-strings for string formatting
+- Use Flask's jsonify for JSON responses
+- Use environment variables for configuration (SECRET_KEY, etc.)
+- Always handle exceptions in routes and return appropriate HTTP status codes
+- Use Flask's error handlers for consistent error responses
+- Never hardcode secrets in source code
+- Validate and sanitize all user inputs
+
+### API Design
+- Use RESTful conventions for API endpoints
+- Return JSON responses with consistent structure
+- Include appropriate HTTP status codes
+- Add API documentation/comments
+- Use proper HTTP methods (GET, POST, PUT, DELETE)
+- Follow the existing pattern: `/api/health` and `/api/hello`
+
+### HTML/CSS
+- Use semantic HTML5 elements
+- Keep CSS organized and maintainable
+- Use modern CSS features (Flexbox, Grid, CSS Variables)
+- Ensure responsive design
+- Follow accessibility guidelines (ARIA labels, alt text)
+- Use external CSS files for larger projects
+
+### Testing
+- Write unit tests for all routes and functions
+- Use the existing unittest framework as in test_app.py
+- Test both success and error cases
+- Mock external dependencies
+- Maintain good test coverage
+- Use descriptive test names
+
+## File Organization
+- Keep templates in the `templates/` directory
+- Use static files in `static/` directory when needed
+- Organize Python modules logically
+- Use `__init__.py` files for packages
+- Keep configuration separate from application logic
+
+## Dependencies & Development
+- Pin specific versions in requirements.txt
+- Use virtual environments
+- Keep dependencies minimal and up-to-date
+- Use meaningful commit messages
+- Test before committing
+- Keep the main branch stable
+
+## Performance & Security
+- Use Flask's built-in caching when appropriate
+- Optimize database queries (when adding database)
+- Minimize template rendering time
+- Use appropriate data structures
+- Use CSRF protection for forms
+- Implement proper authentication when needed
+
+## Documentation
+- Keep README.md updated
+- Document API endpoints
+- Add inline comments for complex logic
+- Maintain setup instructions
+
+## Code Generation Preferences
+- Prefer Flask-specific patterns over generic Python
+- Follow the existing route structure pattern in app.py
+- Maintain the current error handling approach
+- Keep the simple, clean code style already established
+- Use the existing test structure in test_app.py as a template 

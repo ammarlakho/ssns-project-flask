@@ -18,16 +18,12 @@ if [ ! -d "venv" ]; then
     exit 1
 fi
 
-# Check if virtual environment is activated
-if [[ "$VIRTUAL_ENV" == "" ]]; then
-    echo -e "${YELLOW}🔧 Activating virtual environment...${NC}"
-    source venv/bin/activate
-    echo -e "${GREEN}✅ Virtual environment activated${NC}"
-else
-    echo -e "${GREEN}✅ Virtual environment already active${NC}"
-fi
+# Activate virtual environment
+echo -e "${YELLOW}🔧 Activating virtual environment...${NC}"
+source venv/bin/activate
+echo -e "${GREEN}✅ Virtual environment activated${NC}"
 
-# Check if dependencies are installed
+# Check if dependencies are installed using the virtual environment's Python
 if ! python -c "import flask" &> /dev/null; then
     echo -e "${YELLOW}📥 Installing dependencies...${NC}"
     pip install -r requirements.txt
@@ -35,6 +31,9 @@ if ! python -c "import flask" &> /dev/null; then
         echo -e "${RED}❌ Failed to install dependencies${NC}"
         exit 1
     fi
+    echo -e "${GREEN}✅ Dependencies installed successfully${NC}"
+else
+    echo -e "${GREEN}✅ Dependencies already installed${NC}"
 fi
 
 # Check if app.py exists
@@ -42,6 +41,9 @@ if [ ! -f "app.py" ]; then
     echo -e "${RED}❌ app.py not found!${NC}"
     exit 1
 fi
+
+# Create logs directory if it doesn't exist
+mkdir -p logs
 
 echo -e "${GREEN}✅ All checks passed!${NC}"
 echo ""
@@ -51,10 +53,34 @@ echo -e "   ${GREEN}http://localhost:8000${NC}"
 echo ""
 echo -e "${YELLOW}🔌 API endpoints:${NC}"
 echo -e "   ${GREEN}http://localhost:8000/api/health${NC}"
-echo -e "   ${GREEN}http://localhost:8000/api/hello${NC}"
+echo -e "   ${GREEN}http://localhost:8000/api/current${NC}"
+echo -e "   ${GREEN}http://localhost:8000/api/historical${NC}"
+echo -e "   ${GREEN}http://localhost:8000/api/parameters${NC}"
+echo ""
+echo -e "${YELLOW}📝 Logs will be written to:${NC}"
+echo -e "   ${GREEN}app.log${NC}"
+echo -e "   ${GREEN}logs/flask.log${NC}"
 echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
 echo ""
 
-# Run the Flask application
-python app.py 
+# Function to handle graceful shutdown
+cleanup() {
+    echo -e "\n${YELLOW}🛑 Shutting down Flask application...${NC}"
+    if [ ! -z "$FLASK_PID" ]; then
+        kill $FLASK_PID 2>/dev/null
+        wait $FLASK_PID 2>/dev/null
+    fi
+    echo -e "${GREEN}✅ Flask application stopped${NC}"
+    exit 0
+}
+
+# Set up signal handlers
+trap cleanup SIGINT SIGTERM
+
+# Run the Flask application with enhanced logging
+python app.py 2>&1 | tee logs/flask.log &
+FLASK_PID=$!
+
+# Wait for the process
+wait $FLASK_PID 

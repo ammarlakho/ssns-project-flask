@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flask App</title>
+    <title>Environmental Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             margin: 0;
@@ -15,84 +16,518 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            color: #333;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1rem;
         }
         
         .container {
-            background: white;
+            max-width: 1400px;
+            margin: 0 auto;
             padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 500px;
-            width: 90%;
         }
         
-        h1 {
-            color: #333;
-            margin-bottom: 1rem;
-            font-size: 2.5rem;
-        }
-        
-        p {
-            color: #666;
+        .current-readings {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
             margin-bottom: 2rem;
+        }
+        
+        .reading-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .reading-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .reading-card h3 {
+            color: #333;
+            margin-bottom: 0.5rem;
             font-size: 1.1rem;
-            line-height: 1.6;
         }
         
-        .api-links {
+        .reading-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .reading-unit {
+            color: #666;
+            font-size: 1rem;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .status-good { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-danger { background: #dc3545; }
+        
+        .charts-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .charts-section h2 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 2rem;
+        }
+        
+        .controls {
             display: flex;
-            flex-direction: column;
             gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
         }
         
-        .api-link {
+        .time-selector {
+            padding: 0.5rem 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        
+        .time-selector:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .refresh-btn {
+            padding: 0.5rem 1rem;
             background: #667eea;
             color: white;
-            padding: 0.75rem 1.5rem;
-            text-decoration: none;
+            border: none;
             border-radius: 8px;
-            transition: all 0.3s ease;
-            font-weight: 500;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
         }
         
-        .api-link:hover {
+        .refresh-btn:hover {
             background: #5a6fd8;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         
-        .status {
-            margin-top: 2rem;
+        .last-updated {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
             padding: 1rem;
-            background: #f8f9fa;
             border-radius: 8px;
-            border-left: 4px solid #28a745;
+            margin: 1rem 0;
         }
         
-        .status h3 {
-            color: #28a745;
-            margin-bottom: 0.5rem;
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .current-readings {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+            }
+            
+            .reading-value {
+                font-size: 2rem;
+            }
+            
+            .charts-section {
+                padding: 1rem;
+            }
+            
+            .chart-container {
+                height: 300px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 Flask App</h1>
-        <p>Welcome to your basic Flask application! This is a simple starter template with some API endpoints.</p>
-        
-        <div class="api-links">
-            <a href="/api/health" class="api-link">Health Check</a>
-            <a href="/api/hello" class="api-link">Hello API</a>
-        </div>
-        
-        <div class="status">
-            <h3>✅ Status</h3>
-            <p>Your Flask application is running successfully!</p>
+    <div class="header">
+        <h1>🌱 Environmental Monitoring Dashboard</h1>
+        <p>Real-time monitoring of air quality and environmental parameters</p>
+        <div style="margin-top: 1rem;">
+            <a href="/" style="color: #667eea; text-decoration: none; margin-right: 1rem; font-weight: 600;">Dashboard</a>
+            <a href="/admin/parameters" style="color: #667eea; text-decoration: none; font-weight: 600;">Parameter Settings</a>
         </div>
     </div>
+    
+    <div class="container">
+        <!-- Current Readings Section -->
+        <div class="current-readings" id="currentReadings">
+            <div class="loading">Loading current readings...</div>
+        </div>
+        
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <h2>Historical Data Trends</h2>
+            
+            <div class="controls">
+                <select class="time-selector" id="timeRange">
+                    <option value="1">Last Hour</option>
+                    <option value="6">Last 6 Hours</option>
+                    <option value="24" selected>Last 24 Hours</option>
+                    <option value="48">Last 48 Hours</option>
+                    <option value="168">Last Week</option>
+                </select>
+                <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="environmentalChart"></canvas>
+            </div>
+            
+            <div class="last-updated" id="lastUpdated">
+                Last updated: <span id="updateTime">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let environmentalChart;
+        let currentData = {};
+        let parameterInfo = {};
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', async function() {
+            await refreshData();
+            
+            // Set up auto-refresh every 30 seconds
+            setInterval(async () => {
+                await refreshData();
+            }, 30000);
+        });
+        
+        // Load parameter information
+        async function loadParameterInfo() {
+            try {
+                const response = await fetch('/api/parameters');
+                const data = await response.json();
+                parameterInfo = data.data;
+            } catch (error) {
+                console.error('Error loading parameter info:', error);
+            }
+        }
+        
+        // Load current readings
+        async function loadCurrentReadings() {
+            try {
+                const response = await fetch('/api/current');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    currentData = data.data;
+                    displayCurrentReadings(currentData);
+                    updateLastUpdated();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                console.error('Error loading current readings:', error);
+                document.getElementById('currentReadings').innerHTML = 
+                    '<div class="error">Error loading current readings. Please try again.</div>';
+            }
+        }
+        
+        // Display current readings
+        function displayCurrentReadings(data) {
+            const readingsContainer = document.getElementById('currentReadings');
+            const parameters = [
+                { key: 'co2', name: 'Carbon Dioxide', unit: 'ppm', icon: '🌬️' },
+                { key: 'vocs', name: 'VOCs', unit: 'ppb', icon: '🧪' },
+                { key: 'pm25', name: 'PM2.5', unit: 'μg/m³', icon: '🌫️' },
+                { key: 'pm10', name: 'PM10', unit: 'μg/m³', icon: '🌫️' },
+                { key: 'temperature', name: 'Temperature', unit: '°C', icon: '🌡️' },
+                { key: 'humidity', name: 'Humidity', unit: '%', icon: '💧' }
+            ];
+            
+            const readingsHTML = parameters.map(param => {
+                const value = data[param.key];
+                const status = getStatusClass(param.key, value);
+                const statusText = getStatusText(param.key, value);
+                
+                // Round the value to 2 decimal places
+                const roundedValue = typeof value === 'number' ? value.toFixed(2) : value;
+                
+                return `
+                    <div class="reading-card">
+                        <h3>${param.icon} ${param.name}</h3>
+                        <div class="reading-value ${status}">${roundedValue}</div>
+                        <div class="reading-unit">${param.unit}</div>
+                        <div style="margin-top: 0.5rem;">
+                            <span class="status-indicator ${status}"></span>
+                            <span style="font-size: 0.9rem; color: #666;">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            readingsContainer.innerHTML = readingsHTML;
+        }
+        
+        // Get status class based on parameter value
+        function getStatusClass(parameter, value) {
+            if (!parameterInfo[parameter]) return 'status-good';
+            
+            const info = parameterInfo[parameter];    
+            const normalRange = info.normal_range.split('-').map(Number);
+            
+            if (parameter === 'temperature' || parameter === 'humidity') {
+                if (value >= normalRange[0] && value <= normalRange[1]) return 'status-good';
+                return 'status-warning';
+            } else {
+                if (value <= normalRange[1]) return 'status-good';
+                if (value <= parseFloat(info.dangerous_level.replace('>', ''))) return 'status-warning';
+                return 'status-danger';
+            }
+        }
+        
+        // Get status text
+        function getStatusText(parameter, value) {
+            const statusClass = getStatusClass(parameter, value);
+            switch (statusClass) {
+                case 'status-good': return 'Good';
+                case 'status-warning': return 'Moderate';
+                case 'status-danger': return 'Poor';
+                default: return 'Unknown';
+            }
+        }
+        
+        // Load historical data
+        async function loadHistoricalData() {
+            try {
+                const hours = document.getElementById('timeRange').value;
+                const response = await fetch(`/api/historical?hours=${hours}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    createChart(data.data);
+                    updateLastUpdated();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                console.error('Error loading historical data:', error);
+            }
+        }
+        
+        // Create chart
+        function createChart(data) {
+            const ctx = document.getElementById('environmentalChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (environmentalChart) {
+                environmentalChart.destroy();
+            }
+            
+            const labels = data.map(item => {
+                const date = new Date(item.timestamp);
+                return date.toLocaleTimeString();
+            });
+            
+            const datasets = [
+                {
+                    label: 'CO2 (ppm)',
+                    data: data.map(item => item.co2),
+                    borderColor: '#FF6384',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'VOCs (ppb)',
+                    data: data.map(item => item.vocs),
+                    borderColor: '#36A2EB',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    yAxisID: 'y1'
+                },
+                {
+                    label: 'PM2.5 (μg/m³)',
+                    data: data.map(item => item.pm25),
+                    borderColor: '#FFCE56',
+                    backgroundColor: 'rgba(255, 206, 86, 0.1)',
+                    yAxisID: 'y2'
+                },
+                {
+                    label: 'PM10 (μg/m³)',
+                    data: data.map(item => item.pm10),
+                    borderColor: '#4BC0C0',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    yAxisID: 'y2'
+                },
+                {
+                    label: 'Temperature (°C)',
+                    data: data.map(item => item.temperature),
+                    borderColor: '#9966FF',
+                    backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                    yAxisID: 'y3'
+                },
+                {
+                    label: 'Humidity (%)',
+                    data: data.map(item => item.humidity),
+                    borderColor: '#FF9F40',
+                    backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                    yAxisID: 'y4'
+                }
+            ];
+            
+            environmentalChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'CO2 (ppm)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'VOCs (ppb)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        },
+                        y2: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'PM (μg/m³)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        },
+                        y3: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Temperature (°C)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        },
+                        y4: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Humidity (%)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Environmental Parameters Over Time'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Refresh data
+        async function refreshData() {
+            await loadParameterInfo();
+            await loadCurrentReadings();
+            await loadHistoricalData();
+        }
+        
+        // Update last updated time
+        function updateLastUpdated() {
+            const now = new Date();
+            document.getElementById('updateTime').textContent = now.toLocaleString();
+        }
+        
+        // Handle time range change
+        document.getElementById('timeRange').addEventListener('change', loadHistoricalData);
+    </script>
 </body>
 </html> 

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parameter Management - Environmental Monitoring</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .nav-bar {
+            background: #ecf0f1;
+            padding: 15px 30px;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .nav-bar a {
+            color: #2c3e50;
+            text-decoration: none;
+            font-weight: 600;
+            margin-right: 20px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-bar a:hover {
+            background: #bdc3c7;
+        }
+
+        .nav-bar a.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            color: #7f8c8d;
+        }
+
+        .parameter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .parameter-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .parameter-card:hover {
+            border-color: #3498db;
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.15);
+        }
+
+        .parameter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .parameter-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .parameter-unit {
+            background: #3498db;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .parameter-description {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .dangerous-levels {
+            background: #fff5f5;
+            border: 2px solid #fed7d7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .dangerous-levels h4 {
+            color: #e53e3e;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .save-status {
+            text-align: center;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+
+        .save-status.saving {
+            color: #f39c12;
+        }
+
+        .save-status.saved {
+            color: #27ae60;
+        }
+
+        .save-status.error {
+            color: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .parameter-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Parameter Management</h1>
+            <p>Configure environmental monitoring thresholds and parameters</p>
+        </div>
+        
+        <div class="nav-bar">
+            <a href="/">Dashboard</a>
+            <a href="/admin/parameters" class="active">Parameters</a>
+        </div>
+        
+        <div class="content">
+            <div id="loading" class="loading">
+                Loading parameters...
+            </div>
+            
+            <div id="error" class="alert alert-error" style="display: none;">
+                Failed to load parameters. Please refresh the page.
+            </div>
+            
+            <div id="parameters-container" style="display: none;">
+                <div class="alert alert-info">
+                    <strong>Instructions:</strong> Edit the parameter configurations below. Changes are automatically saved when you click "Save Changes".
+                </div>
+                
+                <div id="parameter-grid" class="parameter-grid">
+                    <!-- Parameters will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let parameters = {};
+        let saveTimeouts = {};
+
+        // Load parameters on page load
+        document.addEventListener('DOMContentLoaded', loadParameters);
+
+        async function loadParameters() {
+            try {
+                const response = await fetch('/api/admin/parameters');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    parameters = result.data;
+                    displayParameters();
+                } else {
+                    throw new Error(result.message || 'Failed to load parameters');
+                }
+            } catch (error) {
+                console.error('Error loading parameters:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function displayParameters() {
+            const container = document.getElementById('parameters-container');
+            const grid = document.getElementById('parameter-grid');
+            const loading = document.getElementById('loading');
+            
+            loading.style.display = 'none';
+            container.style.display = 'block';
+            
+            grid.innerHTML = '';
+            
+            Object.entries(parameters).forEach(([paramKey, param]) => {
+                const card = createParameterCard(paramKey, param);
+                grid.appendChild(card);
+            });
+        }
+
+        function createParameterCard(paramKey, param) {
+            const card = document.createElement('div');
+            card.className = 'parameter-card';
+            
+            card.innerHTML = `
+                <div class="parameter-header">
+                    <div class="parameter-name">${param.name}</div>
+                    <div class="parameter-unit">${param.unit}</div>
+                </div>
+                
+                <div class="parameter-description">${param.description}</div>
+                
+                <form id="form-${paramKey}" onsubmit="saveParameter('${paramKey}', event)">
+                    <div class="form-group">
+                        <label for="display_name_${paramKey}">Display Name</label>
+                        <input type="text" id="display_name_${paramKey}" name="display_name" 
+                               value="${param.name}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="unit_${paramKey}">Unit</label>
+                        <input type="text" id="unit_${paramKey}" name="unit" 
+                               value="${param.unit}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description_${paramKey}">Description</label>
+                        <textarea id="description_${paramKey}" name="description" 
+                                  rows="3" required>${param.description}</textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="normal_min_${paramKey}">Normal Range Min</label>
+                            <input type="number" id="normal_min_${paramKey}" name="normal_range_min" 
+                                   value="${param.normal_range_min}" step="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="normal_max_${paramKey}">Normal Range Max</label>
+                            <input type="number" id="normal_max_${paramKey}" name="normal_range_max" 
+                                   value="${param.normal_range_max}" step="0.1" required>
+                        </div>
+                    </div>
+                    
+                    <div class="dangerous-levels">
+                        <h4>Dangerous Levels (Optional)</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="dangerous_min_${paramKey}">Dangerous Level Min</label>
+                                <input type="number" id="dangerous_min_${paramKey}" name="dangerous_level_min" 
+                                       value="${param.dangerous_level_min || ''}" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label for="dangerous_max_${paramKey}">Dangerous Level Max</label>
+                                <input type="number" id="dangerous_max_${paramKey}" name="dangerous_level_max" 
+                                       value="${param.dangerous_level_max || ''}" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">Save Changes</button>
+                    <div id="save-status-${paramKey}" class="save-status"></div>
+                </form>
+            `;
+            
+            return card;
+        }
+
+        async function saveParameter(paramKey, event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            const saveStatus = document.getElementById(`save-status-${paramKey}`);
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            // Clear previous timeout
+            if (saveTimeouts[paramKey]) {
+                clearTimeout(saveTimeouts[paramKey]);
+            }
+            
+            // Prepare data
+            const data = {
+                display_name: formData.get('display_name'),
+                unit: formData.get('unit'),
+                description: formData.get('description'),
+                normal_range_min: parseFloat(formData.get('normal_range_min')),
+                normal_range_max: parseFloat(formData.get('normal_range_max')),
+                dangerous_level_min: formData.get('dangerous_level_min') ? parseFloat(formData.get('dangerous_level_min')) : null,
+                dangerous_level_max: formData.get('dangerous_level_max') ? parseFloat(formData.get('dangerous_level_max')) : null
+            };
+            
+            // Show saving status
+            saveStatus.textContent = 'Saving...';
+            saveStatus.className = 'save-status saving';
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`/api/admin/parameters/${paramKey}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    saveStatus.textContent = 'Saved successfully!';
+                    saveStatus.className = 'save-status saved';
+                    
+                    // Update local data
+                    parameters[paramKey] = {
+                        ...parameters[paramKey],
+                        ...data,
+                        name: data.display_name,
+                        normal_range: `${data.normal_range_min}-${data.normal_range_max}`,
+                        dangerous_level: formatDangerousLevel(data.dangerous_level_min, data.dangerous_level_max)
+                    };
+                    
+                    // Clear status after 3 seconds
+                    saveTimeouts[paramKey] = setTimeout(() => {
+                        saveStatus.textContent = '';
+                        saveStatus.className = 'save-status';
+                    }, 3000);
+                } else {
+                    throw new Error(result.message || 'Failed to save parameter');
+                }
+            } catch (error) {
+                console.error('Error saving parameter:', error);
+                saveStatus.textContent = `Error: ${error.message}`;
+                saveStatus.className = 'save-status error';
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        function formatDangerousLevel(min, max) {
+            if (min !== null && max !== null) {
+                return `<${min} or >${max}`;
+            } else if (max !== null) {
+                return `>${max}`;
+            } else {
+                return 'N/A';
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -1,7 +1,28 @@
-# Flask Basic Repository
+# Environmental Monitoring Dashboard
 
-A simple Flask web application with a modern UI and basic API endpoints.
+A Flask-based web application for real-time monitoring of environmental parameters with interactive data visualization.
 
+## Features
+
+- **Real-time Environmental Monitoring**: Track CO2, VOCs, PM2.5, PM10, temperature, and humidity
+- **Interactive Dashboard**: Modern, responsive web interface with real-time updates
+- **Historical Data Visualization**: Chart.js-powered graphs with customizable time ranges
+- **Status Indicators**: Color-coded status indicators for each parameter
+- **RESTful API**: Complete API for data access and integration
+- **Auto-refresh**: Automatic data updates every 30 seconds
+- **Database Storage**: SQLite database
+- **Modular Architecture**: Clean separation of concerns with database abstraction layer
+
+## Monitored Parameters
+
+| Parameter | Unit | Description | Normal Range | Dangerous Level |
+|-----------|------|-------------|--------------|-----------------|
+| Carbon Dioxide (CO2) | ppm | Concentration of carbon dioxide in the air | 400-1000 | >1000 |
+| Volatile Organic Compounds (VOCs) | ppb | Concentration of volatile organic compounds | 0-500 | >500 |
+| PM2.5 | μg/m³ | Fine particulate matter (≤2.5μm) | 0-12 | >35 |
+| PM10 | μg/m³ | Coarse particulate matter (≤10μm) | 0-54 | >150 |
+| Temperature | °C | Ambient air temperature | 18-25 | <10 or >30 |
+| Humidity | % | Relative humidity of the air | 30-60 | <20 or >80 |
 
 ## Quick Start
 
@@ -15,26 +36,86 @@ A simple Flask web application with a modern UI and basic API endpoints.
    ./setup.sh
    ```
 
-3. **Start the application**:
+3. **Initialize the database** (first time only):
+   ```bash
+   python init_db.py
+   ```
+
+4. **Start the application**:
    ```bash
    ./start.sh
    ```
 
-4. **Access the application**:
+5. **Access the dashboard**:
    - Open your browser and go to: `http://localhost:8000`
-   - The API endpoints are available at:
-     - `http://localhost:8000/api/health`
-     - `http://localhost:8000/api/hello`
+   - View real-time environmental data and historical trends
+
+## Database
+
+The application uses a modular database architecture that makes it easy to switch between different database systems.
+
+### Database Architecture
+
+- **Abstract Interface**: `DatabaseInterface` defines the contract for all database implementations
+- **SQLite Implementation**: Current implementation using SQLite for simplicity
+- **Factory Pattern**: `DatabaseFactory` creates appropriate database instances
+- **Configuration Management**: Environment-based configuration for different database types
+
+### Database Setup
+
+#### SQLite (Default)
+The application uses SQLite by default, which requires no additional setup:
+
+```bash
+# Initialize database with sample data
+python init_db.py
+```
+
+### Database Operations
+
+The database layer provides these operations:
+- `insert_reading()`: Add new environmental readings
+- `get_latest_reading()`: Get most recent reading
+- `get_readings_since()`: Get readings from last N hours
+- `get_readings_between()`: Get readings between timestamps
+- `get_reading_count()`: Get total number of readings
+- `clear_old_readings()`: Clean up old data
+- `populate_sample_data()`: Add sample data for testing
+
+### Database Schema
+
+```sql
+CREATE TABLE environmental_readings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    co2 REAL NOT NULL,
+    vocs REAL NOT NULL,
+    pm25 REAL NOT NULL,
+    pm10 REAL NOT NULL,
+    temperature REAL NOT NULL,
+    humidity REAL NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_timestamp ON environmental_readings(timestamp);
+```
 
 ## Project Structure
 
 ```
 ssns-project-flask/
 ├── app.py              # Main Flask application
+├── init_db.py          # Database initialization script
 ├── requirements.txt    # Python dependencies
+├── database/           # Database layer
+│   ├── __init__.py     # Package initialization
+│   ├── config.py       # Database configuration
+│   ├── interface.py    # Abstract database interface
+│   ├── sqlite_db.py    # SQLite implementation
+│   └── factory.py      # Database factory
 ├── templates/          # HTML templates
-│   └── index.html     # Main page template
-├── test_app.py        # Basic tests
+│   └── index.html     # Environmental monitoring dashboard
+├── test_app.py        # Comprehensive test suite
 ├── setup.sh           # Setup script (creates venv & installs deps)
 ├── start.sh           # Startup script (runs the app)
 ├── .gitignore         # Git ignore rules
@@ -45,9 +126,12 @@ ssns-project-flask/
 
 | Endpoint | Method | Description | Response |
 |----------|--------|-------------|----------|
-| `/` | GET | Main page | HTML page |
-| `/api/health` | GET | Health check | JSON status |
-| `/api/hello` | GET | Hello message | JSON message |
+| `/` | GET | Environmental monitoring dashboard | HTML page |
+| `/api/health` | GET | Health check with database status | JSON status |
+| `/api/current` | GET | Current environmental readings | JSON data |
+| `/api/historical` | GET | Historical data with time range | JSON data |
+| `/api/parameters` | GET | Parameter information and ranges | JSON metadata |
+| `/api/stats` | GET | Database statistics | JSON stats |
 
 ### Example API Responses
 
@@ -55,16 +139,98 @@ ssns-project-flask/
 ```json
 {
   "status": "healthy",
-  "message": "Flask app is running!"
+  "message": "Environmental monitoring system is running!",
+  "database": {
+    "type": "sqlite",
+    "readings_count": 1440
+  }
 }
 ```
 
-**Hello API** (`/api/hello`):
+**Current Readings** (`/api/current`):
 ```json
 {
-  "message": "Hello, World!"
+  "status": "success",
+  "data": {
+    "timestamp": "2024-01-15T10:30:00",
+    "co2": 450.25,
+    "vocs": 125.50,
+    "pm25": 8.75,
+    "pm10": 25.30,
+    "temperature": 22.5,
+    "humidity": 45.2
+  },
+  "timestamp": "2024-01-15T10:30:00"
 }
 ```
+
+**Database Stats** (`/api/stats`):
+```json
+{
+  "status": "success",
+  "stats": {
+    "total_readings": 1440,
+    "latest_reading_timestamp": "2024-01-15T10:30:00",
+    "database_type": "sqlite"
+  }
+}
+```
+
+**Historical Data** (`/api/historical?hours=24`):
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "timestamp": "2024-01-14T10:30:00",
+      "co2": 445.20,
+      "vocs": 120.30,
+      "pm25": 8.50,
+      "pm10": 24.80,
+      "temperature": 22.3,
+      "humidity": 44.8
+    }
+    // ... more data points
+  ],
+  "hours": 24
+}
+```
+
+**Parameters Info** (`/api/parameters`):
+```json
+{
+  "parameters": {
+    "co2": {
+      "name": "Carbon Dioxide",
+      "unit": "ppm",
+      "description": "Concentration of carbon dioxide in the air",
+      "normal_range": "400-1000",
+      "dangerous_level": ">1000"
+    }
+    // ... other parameters
+  }
+}
+```
+
+## Dashboard Features
+
+### Real-time Monitoring
+- Live display of current environmental readings
+- Color-coded status indicators (Good/Moderate/Poor)
+- Auto-refresh every 30 seconds
+- Responsive design for mobile and desktop
+
+### Historical Data Visualization
+- Interactive line charts using Chart.js
+- Multiple time range options (1 hour to 1 week)
+- Multiple Y-axes for different parameter scales
+- Hover tooltips with detailed information
+
+### User Interface
+- Modern, clean design with gradient background
+- Card-based layout for easy reading
+- Smooth animations and transitions
+- Mobile-responsive design
 
 ## Development
 
@@ -81,15 +247,22 @@ You can set the following environment variables:
 
 - `SECRET_KEY`: Secret key for Flask sessions (defaults to a development key)
 
-### Adding New Routes
+### Sample Data
 
-To add new routes, edit `app.py`:
+The application currently uses generated sample data for demonstration. In production, you would:
+1. Replace the sample data generation with real sensor data
+2. Implement database storage for historical data
+3. Add authentication and user management
+4. Implement real-time data streaming
 
-```python
-@app.route('/your-new-route')
-def your_new_function():
-    return jsonify({'message': 'Your response'})
-```
+### Adding New Parameters
+
+To add new environmental parameters:
+
+1. Update the `generate_sample_data()` function in `app.py`
+2. Add parameter information to the `/api/parameters` endpoint
+3. Update the dashboard template to display the new parameter
+4. Add corresponding tests in `test_app.py`
 
 ### Running Tests
 
@@ -101,6 +274,12 @@ source venv/bin/activate
 python test_app.py
 ```
 
+The test suite includes:
+- API endpoint functionality tests
+- Data generation and retrieval tests
+- Error handling tests
+- Parameter validation tests
+
 ## Deployment
 
 For production deployment:
@@ -109,6 +288,8 @@ For production deployment:
 2. Disable debug mode
 3. Use a production WSGI server like Gunicorn
 4. Set up proper logging and monitoring
+5. Implement real sensor data integration
+6. Add database for persistent data storage
 
 ### Example with Gunicorn
 
@@ -116,3 +297,14 @@ For production deployment:
 pip install gunicorn
 gunicorn -w 4 -b 0.0.0.0:8000 app:app
 ```
+
+## Future Enhancements
+
+- Database integration for persistent data storage
+- Real sensor data integration
+- User authentication and authorization
+- Alert system for dangerous levels
+- Data export functionality
+- Mobile app integration
+- Advanced analytics and reporting
+- Multi-location monitoring support
