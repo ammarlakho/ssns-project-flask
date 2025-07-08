@@ -7,3 +7,5 @@ click==8.1.7
 blinker==1.7.0
 # SQLAlchemy for database abstraction (works with SQLite)
 SQLAlchemy==2.0.23 
+pyserial
+requests
