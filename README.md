@@ -242,8 +242,8 @@ ssns-project-flask/
 |----------|--------|-------------|----------|
 | `/` | GET | Environmental monitoring dashboard | HTML page |
 | `/api/health` | GET | Health check with database status | JSON status |
-| `/api/current` | GET | Current environmental readings | JSON data |
-| `/api/historical` | GET | Historical data with time range | JSON data |
+| `/api/readings/current` | GET | Current environmental readings | JSON data |
+| `/api/readings` | GET | Historical data with time range | JSON data |
 | `/api/parameters` | GET | Parameter information and ranges | JSON metadata |
 | `/api/stats` | GET | Database statistics | JSON stats |
 | `/admin/parameters` | GET | Admin parameters management page | HTML page |
@@ -262,7 +262,7 @@ ssns-project-flask/
 }
 ```
 
-**Current Readings** (`/api/current`):
+**Current Readings** (`/api/readings/current`):
 ```json
 {
   "status": "success",
@@ -291,7 +291,7 @@ ssns-project-flask/
 }
 ```
 
-**Historical Data** (`/api/historical?hours=24`):
+**Historical Data** (`/readings?hours=24`):
 ```json
 {
   "status": "success",

@@ -98,7 +98,7 @@ def health_check():
         }), 500
 
 
-@app.route('/api/current')
+@app.route('/api/readings/current',  methods=['GET'])
 def current_readings():
     """Get current environmental readings"""
     try:
@@ -121,7 +121,7 @@ def current_readings():
         }), 500
 
 
-@app.route('/api/historical')
+@app.route('/api/readings',  methods=['GET'])
 def historical_data():
     """Get historical environmental data"""
     try:
@@ -141,23 +141,6 @@ def historical_data():
             'message': str(e)
         }), 500
 
-
-@app.route('/api/parameters')
-def parameters_info():
-    """Get information about monitored parameters"""
-    try:
-        parameters = db.get_all_parameters()
-
-        return jsonify({
-            'status': 'success',
-            'data': parameters
-        })
-
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
 
 
 @app.route('/api/readings', methods=['POST'])
@@ -235,6 +218,25 @@ def store_reading():
             'status': 'error',
             'message': str(e)
         }), 500
+
+
+@app.route('/api/parameters')
+def parameters_info():
+    """Get information about monitored parameters"""
+    try:
+        parameters = db.get_all_parameters()
+
+        return jsonify({
+            'status': 'success',
+            'data': parameters
+        })
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 
 
 @app.route('/admin/parameters')
@@ -336,29 +338,6 @@ def update_parameter_admin(param_name):
             'status': 'error',
             'message': str(e)
         }), 500
-
-
-@app.route('/api/stats')
-def database_stats():
-    """Get database statistics"""
-    try:
-        reading_count = db.get_reading_count()
-        latest_reading = db.get_latest_reading()
-
-        return jsonify({
-            'status': 'success',
-            'stats': {
-                'total_readings': reading_count,
-                'latest_reading_timestamp': latest_reading['timestamp'] if latest_reading else None,
-                'database_type': 'sqlite'
-            }
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
 
 # Global error handlers to prevent crashes
 @app.errorhandler(404)

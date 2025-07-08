@@ -390,7 +390,7 @@
         // Load current readings
         async function loadCurrentReadings() {
             try {
-                const response = await fetch('/api/current');
+                const response = await fetch('/api/readings/current');
                 const data = await response.json();
                 
                 if (data.status === 'success') {
@@ -487,7 +487,7 @@
         async function loadHistoricalData() {
             try {
                 const hours = document.getElementById('timeRange').value;
-                const response = await fetch(`/api/historical?hours=${hours}`);
+                const response = await fetch(`/api/readings?hours=${hours}`);
                 const data = await response.json();
                 
                 if (data.status === 'success') {

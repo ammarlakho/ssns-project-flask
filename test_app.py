@@ -56,7 +56,7 @@ class FlaskAppTestCase(unittest.TestCase):
 
     def test_current_readings(self):
         """Test the current readings endpoint"""
-        response = self.app.get('/api/current')
+        response = self.app.get('/api/readings/current')
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertEqual(data['status'], 'success')
@@ -73,7 +73,7 @@ class FlaskAppTestCase(unittest.TestCase):
 
     def test_historical_data_default(self):
         """Test the historical data endpoint with default parameters"""
-        response = self.app.get('/api/historical')
+        response = self.app.get('/api/api/readings')
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertEqual(data['status'], 'success')
@@ -84,7 +84,7 @@ class FlaskAppTestCase(unittest.TestCase):
 
     def test_historical_data_custom_hours(self):
         """Test the historical data endpoint with custom hours"""
-        response = self.app.get('/api/historical?hours=6')
+        response = self.app.get('/readings?hours=6')
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertEqual(data['status'], 'success')
@@ -92,7 +92,7 @@ class FlaskAppTestCase(unittest.TestCase):
 
     def test_historical_data_max_limit(self):
         """Test that historical data respects the maximum limit"""
-        response = self.app.get('/api/historical?hours=200')  # Over the limit
+        response = self.app.get('/readings?hours=200')  # Over the limit
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertEqual(data['hours'], 168)  # Should be capped at 1 week
@@ -153,7 +153,7 @@ class FlaskAppTestCase(unittest.TestCase):
     def test_error_handling(self):
         """Test error handling in API endpoints"""
         # Test with invalid hours parameter
-        response = self.app.get('/api/historical?hours=invalid')
+        response = self.app.get('/readings?hours=invalid')
         self.assertEqual(response.status_code, 200)  # Should handle gracefully
 
     def test_database_operations(self):
@@ -205,7 +205,7 @@ class EnvironmentalMonitoringTestCase(unittest.TestCase):
 
     def test_current_readings(self):
         """Test the current readings endpoint."""
-        response = self.app.get('/api/current')
+        response = self.app.get('/api/readings/current')
         data = json.loads(response.data)
 
         self.assertEqual(response.status_code, 200)
@@ -215,7 +215,7 @@ class EnvironmentalMonitoringTestCase(unittest.TestCase):
 
     def test_historical_data(self):
         """Test the historical data endpoint."""
-        response = self.app.get('/api/historical?hours=24')
+        response = self.app.get('/readings?hours=24')
         data = json.loads(response.data)
 
         self.assertEqual(response.status_code, 200)
