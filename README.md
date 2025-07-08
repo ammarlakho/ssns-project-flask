@@ -2,6 +2,21 @@
 
 A Flask-based web application for real-time monitoring of environmental parameters with interactive data visualization.
 
+## How To Run
+
+```bash
+./setup.sh
+./start_server.sh
+./start_serial.sh
+```
+
+If there are permission issues to run the executable scripts, you can run the following command to make them executable:
+
+```bash
+chmod +x setup.sh start_server.sh start_serial.sh
+```
+
+
 ## Features
 
 - **Real-time Environmental Monitoring**: Track CO2, VOCs, PM2.5, PM10, temperature, and humidity
