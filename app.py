@@ -160,6 +160,83 @@ def parameters_info():
         }), 500
 
 
+@app.route('/api/readings', methods=['POST'])
+def store_reading():
+    """Store a new environmental reading"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'No data provided'
+            }), 400
+
+        # Required environmental parameters
+        required_params = ['co2', 'vocs', 'pm25',
+                           'pm10', 'temperature', 'humidity']
+
+        # Validate that all required parameters are present
+        for param in required_params:
+            if param not in data:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Missing required parameter: {param}'
+                }), 400
+
+        # Validate that all values are numeric
+        try:
+            reading_data = {}
+            for param in required_params:
+                reading_data[param] = float(data[param])
+        except (ValueError, TypeError):
+            return jsonify({
+                'status': 'error',
+                'message': 'All environmental parameters must be numeric values'
+            }), 400
+
+        # Handle optional timestamp (default to current time)
+        if 'timestamp' in data and data['timestamp']:
+            try:
+                # Try to parse the provided timestamp
+                timestamp = data['timestamp']
+                # Validate ISO format by attempting to parse it
+                datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                reading_data['timestamp'] = timestamp
+            except (ValueError, AttributeError):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Invalid timestamp format. Use ISO format (e.g., 2023-12-01T10:30:00)'
+                }), 400
+        else:
+            # Default to current timestamp
+            reading_data['timestamp'] = datetime.now().isoformat()
+
+        # Store the reading in the database
+        success = db.insert_reading(reading_data)
+
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': 'Environmental reading stored successfully',
+                'data': {
+                    'timestamp': reading_data['timestamp'],
+                    'parameters_stored': len(required_params)
+                }
+            }), 201
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to store reading in database'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error storing reading: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 @app.route('/admin/parameters')
 def admin_parameters():
     """Admin page for editing parameter thresholds"""
