@@ -369,7 +369,7 @@ def update_parameter_admin(param_name):
         }), 500
 
 
-@app.route('/api/export/csv', methods=['POST'])
+@app.route('/api/readings/export', methods=['POST'])
 def export_csv():
     """Export environmental readings to CSV format"""
     try:
