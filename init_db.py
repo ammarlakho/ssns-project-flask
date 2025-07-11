@@ -24,7 +24,7 @@ def init_database():
 
             # Populate with sample data
             print("Populating with sample data...")
-            database.populate_sample_data()
+            # database.populate_sample_data()
 
             # Display database stats
             count = database.get_reading_count()

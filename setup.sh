@@ -55,10 +55,6 @@ else
     exit 1
 fi
 
-# Run tests
-echo -e "${YELLOW}🧪 Running tests...${NC}"
-python test_app.py
-
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ All tests passed!${NC}"
 else

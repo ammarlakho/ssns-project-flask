@@ -1,7 +1,9 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, make_response
 import os
 import logging
 import sys
+import csv
+import io
 from datetime import datetime
 from database import db
 import atexit
@@ -61,15 +63,6 @@ def get_current_readings():
         return None
 
 
-def get_historical_data(hours=24):
-    """Get historical data for the specified number of hours from database"""
-    try:
-        return db.get_readings_since(hours)
-    except Exception as e:
-        logger.error(f"Error getting historical data: {e}", exc_info=True)
-        return []
-
-
 @app.route('/')
 def index():
     """Main dashboard page"""
@@ -125,17 +118,53 @@ def current_readings():
 def historical_data():
     """Get historical environmental data"""
     try:
-        hours = request.args.get('hours', 24, type=int)
-        if hours > 168:  # Limit to 1 week
-            hours = 168
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
 
-        data = get_historical_data(hours)
+        if not start_date_str or not end_date_str:
+            return jsonify({
+                'status': 'error',
+                'message': 'Both start_date and end_date are required'
+            }), 400
+
+        try:
+            start_date = datetime.fromisoformat(
+                start_date_str.replace('T', ' '))
+            end_date = datetime.fromisoformat(
+                end_date_str.replace('T', ' '))
+        except ValueError:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid date format. Use YYYY-MM-DDTHH:MM format'
+            }), 400
+
+        # Validate date range
+        if start_date >= end_date:
+            return jsonify({
+                'status': 'error',
+                'message': 'Start date must be before end date'
+            }), 400
+
+        # Limit the date range to prevent excessive data
+        date_diff = end_date - start_date
+        if date_diff.days > 365:  # Limit to 1 year
+            return jsonify({
+                'status': 'error',
+                'message': 'Date range cannot exceed 1 year'
+            }), 400
+
+        # Get readings using date range
+        data = db.get_readings_between(start_date, end_date)
+
         return jsonify({
             'status': 'success',
             'data': data,
-            'hours': hours
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'count': len(data)
         })
     except Exception as e:
+        logger.error(f"Error getting historical data: {e}", exc_info=True)
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -334,6 +363,115 @@ def update_parameter_admin(param_name):
             }), 500
 
     except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/export/csv', methods=['POST'])
+def export_csv():
+    """Export environmental readings to CSV format"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'No data provided'
+            }), 400
+
+        # Validate required fields
+        if 'start_date' not in data or 'end_date' not in data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Both start_date and end_date are required'
+            }), 400
+
+        try:
+            # Parse the datetime strings
+            start_date = datetime.fromisoformat(
+                data['start_date'].replace('T', ' '))
+            end_date = datetime.fromisoformat(
+                data['end_date'].replace('T', ' '))
+        except ValueError:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid date format. Use YYYY-MM-DDTHH:MM format'
+            }), 400
+
+        # Validate date range
+        if start_date >= end_date:
+            return jsonify({
+                'status': 'error',
+                'message': 'Start date must be before end date'
+            }), 400
+
+        # Limit the date range to prevent excessive data
+        date_diff = end_date - start_date
+        if date_diff.days > 365:  # Limit to 1 year
+            return jsonify({
+                'status': 'error',
+                'message': 'Date range cannot exceed 1 year'
+            }), 400
+
+        # Get readings from database
+        readings = db.get_readings_between(start_date, end_date)
+
+        if not readings:
+            return jsonify({
+                'status': 'error',
+                'message': 'No data found for the specified date range'
+            }), 404
+
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Write CSV headers
+        headers = [
+            'Timestamp',
+            'CO2 (ppm)',
+            'VOCs (ppb)',
+            'PM2.5 (μg/m³)',
+            'PM10 (μg/m³)',
+            'Temperature (°C)',
+            'Humidity (%)'
+        ]
+        writer.writerow(headers)
+
+        # Write data rows
+        for reading in readings:
+            writer.writerow([
+                reading['timestamp'],
+                reading['co2'],
+                reading['vocs'],
+                reading['pm25'],
+                reading['pm10'],
+                reading['temperature'],
+                reading['humidity']
+            ])
+
+        # Create response
+        output.seek(0)
+        csv_data = output.getvalue()
+        output.close()
+
+        # Generate filename
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+        filename = f'environmental_data_{start_str}_to_{end_str}.csv'
+
+        # Create response with CSV data
+        response = make_response(csv_data)
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+
+        logger.info(
+            f"CSV export successful: {len(readings)} records from {start_date} to {end_date}")
+        return response
+
+    except Exception as e:
+        logger.error(f"Error exporting CSV: {e}", exc_info=True)
         return jsonify({
             'status': 'error',
             'message': str(e)

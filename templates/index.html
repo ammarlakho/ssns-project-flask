@@ -120,6 +120,131 @@
             gap: 1rem;
             margin-bottom: 1.5rem;
             flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        
+        .date-range-controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .date-input-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+        }
+        
+        .date-input-group label {
+            margin-bottom: 0.25rem;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .date-input {
+            padding: 0.5rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .date-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+        
+        /* Toast notification styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+        
+        .toast {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .toast.success {
+            border-left-color: #28a745;
+        }
+        
+        .toast.error {
+            border-left-color: #dc3545;
+        }
+        
+        .toast.warning {
+            border-left-color: #ffc107;
+        }
+        
+        .toast.info {
+            border-left-color: #17a2b8;
+        }
+        
+        .toast-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        
+        .toast-content {
+            flex: 1;
+        }
+        
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: #333;
+        }
+        
+        .toast-message {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .toast-close:hover {
+            color: #333;
         }
         
         .time-selector {
@@ -265,6 +390,7 @@
             padding: 2rem;
             color: #666;
         }
+
         
         @media (max-width: 768px) {
             .container {
@@ -286,6 +412,50 @@
             
             .chart-container {
                 height: 300px;
+            }
+            
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+            
+            .toast {
+                padding: 0.75rem 1rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .toast-icon {
+                font-size: 1rem;
+            }
+            
+            .toast-title {
+                font-size: 0.9rem;
+            }
+            
+            .toast-message {
+                font-size: 0.8rem;
+            }
+            
+            .date-range-controls {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .date-input-group {
+                min-width: auto;
+                width: 100%;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .refresh-btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
             }
         }
     </style>
@@ -319,14 +489,20 @@
             <h2>Historical Data Trends</h2>
             
             <div class="controls">
-                <select class="time-selector" id="timeRange">
-                    <option value="1">Last Hour</option>
-                    <option value="6">Last 6 Hours</option>
-                    <option value="24" selected>Last 24 Hours</option>
-                    <option value="48">Last 48 Hours</option>
-                    <option value="168">Last Week</option>
-                </select>
-                <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+                <div class="date-range-controls">
+                    <div class="date-input-group">
+                        <label for="startDate">Start Date:</label>
+                        <input type="datetime-local" id="startDate" class="date-input">
+                    </div>
+                    <div class="date-input-group">
+                        <label for="endDate">End Date:</label>
+                        <input type="datetime-local" id="endDate" class="date-input">
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+                    <button class="refresh-btn" onclick="exportToCsv()" style="background: #28a745;">📊 Export CSV</button>
+                </div>
             </div>
             
             <div class="chart-container">
@@ -337,21 +513,119 @@
                 Last updated: <span id="updateTime">-</span>
             </div>
         </div>
+
     </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <script>
         let environmentalChart;
         let currentData = {};
         
+        // Toast notification system
+        function showToast(type, title, message, duration = 5000) {
+            const toastContainer = document.getElementById('toastContainer');
+            
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            // Toast icons
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || icons.info}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="removeToast(this.parentElement)">×</button>
+            `;
+            
+            // Add to container
+            toastContainer.appendChild(toast);
+            
+            // Show toast with animation
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            // Auto remove after duration
+            setTimeout(() => {
+                removeToast(toast);
+            }, duration);
+            
+            // Remove on click
+            toast.addEventListener('click', () => {
+                removeToast(toast);
+            });
+        }
+        
+        function removeToast(toast) {
+            if (toast && toast.parentElement) {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.parentElement.removeChild(toast);
+                    }
+                }, 300);
+            }
+        }
+        
+        // Convenience functions for different toast types
+        function showSuccess(title, message) {
+            showToast('success', title, message);
+        }
+        
+        function showError(title, message) {
+            showToast('error', title, message);
+        }
+        
+        function showWarning(title, message) {
+            showToast('warning', title, message);
+        }
+        
+        function showInfo(title, message) {
+            showToast('info', title, message);
+        }
+        
         // Initialize the application
         document.addEventListener('DOMContentLoaded', async function() {
+            // Set default dates (1 hour range as requested)
+            const now = new Date();
+            const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+            
+            document.getElementById('startDate').value = formatDateForInput(oneHourAgo);
+            document.getElementById('endDate').value = formatDateForInput(now);
+            
             await refreshData();
             
             // Set up auto-refresh every 30 seconds
             setInterval(async () => {
                 await refreshData();
             }, 30000);
+            
+            // Add event listeners for date changes
+            document.getElementById('startDate').addEventListener('change', loadHistoricalData);
+            document.getElementById('endDate').addEventListener('change', loadHistoricalData);
         });
+        
+        function formatDateForInput(date) {
+            // Format date for datetime-local input (YYYY-MM-DDTHH:MM)
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
         
         // Display virtual alerts
         function displayAlerts(alerts) {
@@ -405,6 +679,7 @@
                 console.error('Error loading current readings:', error);
                 document.getElementById('currentReadings').innerHTML = 
                     '<div class="error">Error loading current readings. Please try again.</div>';
+                showError('Data Loading Error', 'Failed to load current readings. Please refresh the page.');
             }
         }
         
@@ -483,11 +758,29 @@
             }
         }
         
-        // Load historical data
+        // Load historical data using date range
         async function loadHistoricalData() {
             try {
-                const hours = document.getElementById('timeRange').value;
-                const response = await fetch(`/api/readings?hours=${hours}`);
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                
+                if (!startDate || !endDate) {
+                    console.log('Start or end date not set, skipping historical data load');
+                    return;
+                }
+                
+                if (new Date(startDate) >= new Date(endDate)) {
+                    console.error('Start date must be before end date');
+                    return;
+                }
+                
+                // Use the updated API endpoint with start_date and end_date parameters
+                const params = new URLSearchParams({
+                    start_date: startDate,
+                    end_date: endDate
+                });
+                
+                const response = await fetch(`/api/readings?${params}`);
                 const data = await response.json();
                 
                 if (data.status === 'success') {
@@ -498,6 +791,7 @@
                 }
             } catch (error) {
                 console.error('Error loading historical data:', error);
+                showError('Chart Error', 'Failed to load historical data. Please check your date range and try again.');
             }
         }
         
@@ -661,8 +955,80 @@
             document.getElementById('updateTime').textContent = now.toLocaleString();
         }
         
-        // Handle time range change
-        document.getElementById('timeRange').addEventListener('change', loadHistoricalData);
+
+        
+        // CSV Export function (simplified - uses same date inputs as chart)
+        async function exportToCsv() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                showError('Missing Dates', 'Please select both start and end dates.');
+                return;
+            }
+            
+            if (new Date(startDate) >= new Date(endDate)) {
+                showError('Invalid Date Range', 'Start date must be before end date.');
+                return;
+            }
+            
+            // Get button reference and store original text outside try block
+            const exportBtn = document.querySelector('[onclick="exportToCsv()"]');
+            const originalText = exportBtn.textContent;
+            
+            try {
+                // Show loading state
+                exportBtn.textContent = 'Generating CSV...';
+                exportBtn.disabled = true;
+                
+                // Make API call to export CSV
+                const response = await fetch('/api/export/csv', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        start_date: startDate,
+                        end_date: endDate
+                    })
+                });
+                
+                if (response.ok) {
+                    // Get the CSV data
+                    const blob = await response.blob();
+                    
+                    // Create download link
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    
+                    // Generate filename with date range
+                    const startDateStr = new Date(startDate).toISOString().split('T')[0];
+                    const endDateStr = new Date(endDate).toISOString().split('T')[0];
+                    a.download = `environmental_data_${startDateStr}_to_${endDateStr}.csv`;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    // Show success message
+                    showSuccess('Export Complete', `CSV file has been downloaded successfully.`);
+                } else {
+                    const errorData = await response.json();
+                    showError('Export Failed', errorData.message || 'Unknown error occurred during export.');
+                }
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                showError('Export Error', 'Export failed. Please check your connection and try again.');
+            } finally {
+                // Reset button state
+                exportBtn.textContent = originalText;
+                exportBtn.disabled = false;
+            }
+        }
     </script>
 </body>
 </html> 

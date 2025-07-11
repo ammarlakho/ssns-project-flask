@@ -318,26 +318,6 @@ class Database:
             logger.error(f"Failed to get latest reading: {e}")
             return None
 
-    def get_readings_since(self, hours: int = 24) -> List[Dict[str, Any]]:
-        """Get readings from the last N hours."""
-        try:
-            self._ensure_connection()
-            cursor = self._connection.cursor()
-            cutoff_time = (datetime.now() - timedelta(hours=hours)).isoformat()
-
-            cursor.execute('''
-                SELECT timestamp, co2, vocs, pm25, pm10, temperature, humidity
-                FROM environmental_readings
-                WHERE timestamp >= ?
-                ORDER BY timestamp ASC
-            ''', (cutoff_time,))
-
-            rows = cursor.fetchall()
-            return [dict(row) for row in rows]
-        except sqlite3.Error as e:
-            logger.error(f"Failed to get readings since: {e}")
-            return []
-
     def get_readings_between(self, start_time: datetime, end_time: datetime) -> List[Dict[str, Any]]:
         """Get readings between two timestamps."""
         try:

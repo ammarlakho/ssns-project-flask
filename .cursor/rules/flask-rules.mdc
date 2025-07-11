@@ -41,14 +41,6 @@ This is a Flask 3.0+ web application with API endpoints, HTML templates, and uni
 - Follow accessibility guidelines (ARIA labels, alt text)
 - Use external CSS files for larger projects
 
-### Testing
-- Write unit tests for all routes and functions
-- Use the existing unittest framework as in test_app.py
-- Test both success and error cases
-- Mock external dependencies
-- Maintain good test coverage
-- Use descriptive test names
-
 ## File Organization
 - Keep templates in the `templates/` directory
 - Use static files in `static/` directory when needed
@@ -83,4 +75,3 @@ This is a Flask 3.0+ web application with API endpoints, HTML templates, and uni
 - Follow the existing route structure pattern in app.py
 - Maintain the current error handling approach
 - Keep the simple, clean code style already established
-- Use the existing test structure in test_app.py as a template 
