@@ -304,7 +304,9 @@ def update_parameter_admin(param_name):
 
         # Validate required fields
         required_fields = ['display_name', 'unit',
-                           'description', 'normal_range_min', 'normal_range_max']
+                           'description', 'normal_range_min', 'normal_range_max',
+                           'alert_type', 'warning_title', 'warning_message',
+                           'danger_title', 'danger_message']
         for field in required_fields:
             if field not in data:
                 return jsonify({
@@ -339,6 +341,25 @@ def update_parameter_admin(param_name):
                 'message': 'Dangerous level min must be less than max'
             }), 400
 
+        # Validate alert type
+        valid_alert_types = ['general',
+                             'ventilation_required', 'air_quality', 'comfort']
+        if data['alert_type'] not in valid_alert_types:
+            return jsonify({
+                'status': 'error',
+                'message': f'Invalid alert type. Must be one of: {", ".join(valid_alert_types)}'
+            }), 400
+
+        # Validate alert text fields are not empty
+        alert_text_fields = ['warning_title',
+                             'warning_message', 'danger_title', 'danger_message']
+        for field in alert_text_fields:
+            if not data[field] or not data[field].strip():
+                return jsonify({
+                    'status': 'error',
+                    'message': f'{field.replace("_", " ").title()} cannot be empty'
+                }), 400
+
         updates = {
             'display_name': data['display_name'],
             'unit': data['unit'],
@@ -346,7 +367,12 @@ def update_parameter_admin(param_name):
             'normal_range_min': normal_min,
             'normal_range_max': normal_max,
             'dangerous_level_min': dangerous_min,
-            'dangerous_level_max': dangerous_max
+            'dangerous_level_max': dangerous_max,
+            'alert_type': data['alert_type'],
+            'warning_title': data['warning_title'].strip(),
+            'warning_message': data['warning_message'].strip(),
+            'danger_title': data['danger_title'].strip(),
+            'danger_message': data['danger_message'].strip()
         }
 
         success = db.update_parameter(param_name, updates)

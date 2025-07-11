@@ -129,7 +129,7 @@ class Database:
                 )
             ''')
 
-            # Create parameters table
+            # Create parameters table with alert configuration columns
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS parameters (
                     name TEXT PRIMARY KEY,
@@ -140,10 +140,46 @@ class Database:
                     normal_range_max REAL NOT NULL,
                     dangerous_level_min REAL,
                     dangerous_level_max REAL,
+                    alert_type TEXT DEFAULT 'general',
+                    warning_title TEXT DEFAULT 'Parameter Warning',
+                    warning_message TEXT DEFAULT 'Parameter value is outside normal range',
+                    danger_title TEXT DEFAULT 'Parameter Alert',
+                    danger_message TEXT DEFAULT 'Parameter value is at dangerous level',
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+
+            # Add alert columns to existing parameters table if they don't exist
+            try:
+                cursor.execute(
+                    'ALTER TABLE parameters ADD COLUMN alert_type TEXT DEFAULT "general"')
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+            try:
+                cursor.execute(
+                    'ALTER TABLE parameters ADD COLUMN warning_title TEXT DEFAULT "Parameter Warning"')
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+            try:
+                cursor.execute(
+                    'ALTER TABLE parameters ADD COLUMN warning_message TEXT DEFAULT "Parameter value is outside normal range"')
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+            try:
+                cursor.execute(
+                    'ALTER TABLE parameters ADD COLUMN danger_title TEXT DEFAULT "Parameter Alert"')
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+            try:
+                cursor.execute(
+                    'ALTER TABLE parameters ADD COLUMN danger_message TEXT DEFAULT "Parameter value is at dangerous level"')
+            except sqlite3.OperationalError:
+                pass  # Column already exists
 
             # Create index on timestamp for faster queries
             cursor.execute('''
@@ -164,28 +200,71 @@ class Database:
             # Check if parameters already exist
             cursor.execute('SELECT COUNT(*) FROM parameters')
             if cursor.fetchone()[0] > 0:
+                # Check if alert columns exist and update them if needed
+                try:
+                    cursor.execute('SELECT alert_type FROM parameters LIMIT 1')
+                except sqlite3.OperationalError:
+                    # Alert columns don't exist, they were added in initialize_database
+                    pass
                 return  # Parameters already initialized
 
-            # Default parameter configurations
+            # Default parameter configurations with alert content
             default_params = [
                 ('co2', 'Carbon Dioxide', 'ppm',
-                 'Concentration of carbon dioxide in the air', 400, 1000, None, 1000),
+                 'Concentration of carbon dioxide in the air', 400, 1000, None, 1000,
+                 'ventilation_required',
+                 '🪟 Ventilation Recommended',
+                 'CO2 levels are elevated ({value} ppm). Consider opening windows for better air circulation.',
+                 '🚨 Immediate Ventilation Required',
+                 'CO2 levels are dangerously high ({value} ppm). Open windows immediately and increase ventilation.'),
+
                 ('vocs', 'Volatile Organic Compounds', 'ppb',
-                 'Concentration of volatile organic compounds', 0, 500, None, 500),
+                 'Concentration of volatile organic compounds', 0, 500, None, 500,
+                 'ventilation_required',
+                 '🪟 VOC Levels Elevated',
+                 'VOC levels are elevated ({value} ppb). Consider improving ventilation.',
+                 '🚨 High VOC Levels Detected',
+                 'VOC levels are dangerously high ({value} ppb). Increase ventilation and check for sources.'),
+
                 ('pm25', 'PM2.5', 'μg/m³',
-                 'Fine particulate matter (2.5 micrometers or smaller)', 0, 12, None, 35),
+                 'Fine particulate matter (2.5 micrometers or smaller)', 0, 12, None, 35,
+                 'air_quality',
+                 '⚠️ Moderate Air Quality - PM2.5',
+                 'PM2.5 levels are elevated ({value} μg/m³). Monitor air quality.',
+                 '🚨 Poor Air Quality - PM2.5',
+                 'PM2.5 levels are dangerously high ({value} μg/m³). Improve air filtration and ventilation.'),
+
                 ('pm10', 'PM10', 'μg/m³',
-                 'Coarse particulate matter (10 micrometers or smaller)', 0, 54, None, 150),
+                 'Coarse particulate matter (10 micrometers or smaller)', 0, 54, None, 150,
+                 'air_quality',
+                 '⚠️ Moderate Air Quality - PM10',
+                 'PM10 levels are elevated ({value} μg/m³). Monitor air quality.',
+                 '🚨 Poor Air Quality - PM10',
+                 'PM10 levels are dangerously high ({value} μg/m³). Improve air filtration and ventilation.'),
+
                 ('temperature', 'Temperature', '°C',
-                 'Ambient air temperature', 18, 25, 10, 30),
+                 'Ambient air temperature', 18, 25, 10, 30,
+                 'comfort',
+                 '🌡️ Temperature Alert',
+                 'Temperature is outside optimal range ({value}°C). Consider adjusting settings.',
+                 '🌡️ Extreme Temperature',
+                 'Temperature is outside comfortable range ({value}°C). Adjust HVAC settings.'),
+
                 ('humidity', 'Relative Humidity', '%',
-                 'Relative humidity of the air', 30, 60, 20, 80)
+                 'Relative humidity of the air', 30, 60, 20, 80,
+                 'comfort',
+                 '💧 Humidity Alert',
+                 'Humidity is outside optimal range ({value}%). Consider adjusting settings.',
+                 '💧 Extreme Humidity',
+                 'Humidity is outside comfortable range ({value}%). Adjust humidity control.')
             ]
 
             cursor.executemany('''
                 INSERT OR IGNORE INTO parameters 
-                (name, display_name, unit, description, normal_range_min, normal_range_max, dangerous_level_min, dangerous_level_max)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (name, display_name, unit, description, normal_range_min, normal_range_max, 
+                 dangerous_level_min, dangerous_level_max, alert_type, warning_title, 
+                 warning_message, danger_title, danger_message)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', default_params)
 
             self.connection.commit()
@@ -201,7 +280,9 @@ class Database:
             cursor.execute('''
                 SELECT name, display_name, unit, description, 
                        normal_range_min, normal_range_max, 
-                       dangerous_level_min, dangerous_level_max
+                       dangerous_level_min, dangerous_level_max,
+                       alert_type, warning_title, warning_message,
+                       danger_title, danger_message
                 FROM parameters
                 ORDER BY name
             ''')
@@ -230,7 +311,12 @@ class Database:
                     'normal_range_min': param_dict['normal_range_min'],
                     'normal_range_max': param_dict['normal_range_max'],
                     'dangerous_level_min': param_dict['dangerous_level_min'],
-                    'dangerous_level_max': param_dict['dangerous_level_max']
+                    'dangerous_level_max': param_dict['dangerous_level_max'],
+                    'alert_type': param_dict.get('alert_type', 'general'),
+                    'warning_title': param_dict.get('warning_title', 'Parameter Warning'),
+                    'warning_message': param_dict.get('warning_message', 'Parameter value is outside normal range'),
+                    'danger_title': param_dict.get('danger_title', 'Parameter Alert'),
+                    'danger_message': param_dict.get('danger_message', 'Parameter value is at dangerous level')
                 }
 
             return parameters
@@ -252,7 +338,9 @@ class Database:
 
             for field, value in updates.items():
                 if field in ['display_name', 'unit', 'description', 'normal_range_min',
-                             'normal_range_max', 'dangerous_level_min', 'dangerous_level_max']:
+                             'normal_range_max', 'dangerous_level_min', 'dangerous_level_max',
+                             'alert_type', 'warning_title', 'warning_message',
+                             'danger_title', 'danger_message']:
                     update_fields.append(f"{field} = ?")
                     values.append(value)
 
@@ -540,107 +628,50 @@ class Database:
             return None
 
         try:
-            normal_min = param_config.get('normal_range_min')
-            normal_max = param_config.get('normal_range_max')
-            dangerous_min = param_config.get('dangerous_level_min')
-            dangerous_max = param_config.get('dangerous_level_max')
-
             # Determine severity
             severity = 'high' if status == 'danger' else 'medium'
 
-            # Generate alert message based on parameter type
-            if param_name == 'co2':
-                if status == 'danger':
-                    return {
-                        'type': 'ventilation_required',
-                        'severity': severity,
-                        'title': '🚨 Immediate Ventilation Required',
-                        'message': f'CO2 levels are dangerously high ({value:.1f} ppm). Open windows immediately and increase ventilation.',
-                        'threshold': dangerous_max
-                    }
-                else:
-                    return {
-                        'type': 'ventilation_required',
-                        'severity': severity,
-                        'title': '🪟 Ventilation Recommended',
-                        'message': f'CO2 levels are elevated ({value:.1f} ppm). Consider opening windows for better air circulation.',
-                        'threshold': normal_max
-                    }
+            # Get alert configuration from database
+            alert_type = param_config.get('alert_type', 'general')
 
-            elif param_name == 'vocs':
-                if status == 'danger':
-                    return {
-                        'type': 'ventilation_required',
-                        'severity': severity,
-                        'title': '🚨 High VOC Levels Detected',
-                        'message': f'VOC levels are dangerously high ({value:.1f} ppb). Increase ventilation and check for sources.',
-                        'threshold': dangerous_max
-                    }
-                else:
-                    return {
-                        'type': 'ventilation_required',
-                        'severity': severity,
-                        'title': '🪟 VOC Levels Elevated',
-                        'message': f'VOC levels are elevated ({value:.1f} ppb). Consider improving ventilation.',
-                        'threshold': normal_max
-                    }
+            if status == 'danger':
+                title = param_config.get('danger_title', 'Parameter Alert')
+                message = param_config.get(
+                    'danger_message', 'Parameter value is at dangerous level')
+                threshold = param_config.get('dangerous_level_max')
+            else:  # warning
+                title = param_config.get('warning_title', 'Parameter Warning')
+                message = param_config.get(
+                    'warning_message', 'Parameter value is outside normal range')
+                threshold = param_config.get('normal_range_max')
 
-            elif param_name in ['pm25', 'pm10']:
-                param_display = 'PM2.5' if param_name == 'pm25' else 'PM10'
-                if status == 'danger':
-                    return {
-                        'type': 'air_quality',
-                        'severity': severity,
-                        'title': f'🚨 Poor Air Quality - {param_display}',
-                        'message': f'{param_display} levels are dangerously high ({value:.1f} μg/m³). Improve air filtration and ventilation.',
-                        'threshold': dangerous_max
-                    }
-                else:
-                    return {
-                        'type': 'air_quality',
-                        'severity': severity,
-                        'title': f'⚠️ Moderate Air Quality - {param_display}',
-                        'message': f'{param_display} levels are elevated ({value:.1f} μg/m³). Monitor air quality.',
-                        'threshold': normal_max
-                    }
+            # Replace {value} placeholder in message with actual value
+            formatted_message = message.replace('{value}', f'{value:.1f}')
 
-            elif param_name == 'temperature':
+            # Build threshold display
+            if param_name in ['temperature', 'humidity']:
                 if status == 'danger':
-                    return {
-                        'type': 'comfort',
-                        'severity': severity,
-                        'title': '🌡️ Extreme Temperature',
-                        'message': f'Temperature is outside comfortable range ({value:.1f}°C). Adjust HVAC settings.',
-                        'threshold': f"{dangerous_min}-{dangerous_max}°C"
-                    }
+                    dangerous_min = param_config.get('dangerous_level_min')
+                    dangerous_max = param_config.get('dangerous_level_max')
+                    if dangerous_min is not None and dangerous_max is not None:
+                        threshold_display = f"{dangerous_min}-{dangerous_max}{param_config.get('unit', '')}"
+                    else:
+                        threshold_display = str(
+                            threshold) if threshold else "N/A"
                 else:
-                    return {
-                        'type': 'comfort',
-                        'severity': severity,
-                        'title': '🌡️ Temperature Alert',
-                        'message': f'Temperature is outside optimal range ({value:.1f}°C). Consider adjusting settings.',
-                        'threshold': f"{normal_min}-{normal_max}°C"
-                    }
+                    normal_min = param_config.get('normal_range_min')
+                    normal_max = param_config.get('normal_range_max')
+                    threshold_display = f"{normal_min}-{normal_max}{param_config.get('unit', '')}"
+            else:
+                threshold_display = str(threshold) if threshold else "N/A"
 
-            elif param_name == 'humidity':
-                if status == 'danger':
-                    return {
-                        'type': 'comfort',
-                        'severity': severity,
-                        'title': '💧 Extreme Humidity',
-                        'message': f'Humidity is outside comfortable range ({value:.1f}%). Adjust humidity control.',
-                        'threshold': f"{dangerous_min}-{dangerous_max}%"
-                    }
-                else:
-                    return {
-                        'type': 'comfort',
-                        'severity': severity,
-                        'title': '💧 Humidity Alert',
-                        'message': f'Humidity is outside optimal range ({value:.1f}%). Consider adjusting settings.',
-                        'threshold': f"{normal_min}-{normal_max}%"
-                    }
-
-            return None
+            return {
+                'type': alert_type,
+                'severity': severity,
+                'title': title,
+                'message': formatted_message,
+                'threshold': threshold_display
+            }
 
         except Exception as e:
             logger.error(f"Error generating alert for {param_name}: {e}")
